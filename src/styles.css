@@ -25,10 +25,12 @@
   --f:var(--font-sans);
   --fw:700;
   --fs-m:clamp(18px, 1.4vw + 14px, 20px);
-  /* One UI size for chips, buttons, credits, specimen pt labels. */
-  --fs-x:clamp(14.5px, .9vw + 11.5px, 16px); --lh-x:1.32;
-  --chip-h:40px;
-  --s8:8px; --s16:16px;
+  /* One small UI size (chips, credits, labels, exports). */
+  --fs-x:clamp(11px, .4vw + 9px, 12px);
+  --lh-x:clamp(13px, .35vw + 11px, 14px);
+  --chip-h:36px;
+  --chip-gap:6px;
+  --s8:var(--chip-gap); --s16:16px;
   --pad:var(--s16);
   --pad-t:max(var(--pad), env(safe-area-inset-top, 0px));
   --pad-b:max(var(--pad), env(safe-area-inset-bottom, 0px));
@@ -83,10 +85,10 @@ button,input{font:inherit;color:inherit}
 .topbar{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  align-items:center;gap:var(--s8);
+  align-items:start;gap:var(--chip-gap);
   min-width:0;
 }
-.topbar-left,.topbar-right{display:flex;align-items:center;gap:var(--s8);min-width:0}
+.topbar-left,.topbar-right{display:flex;align-items:flex-start;gap:var(--chip-gap);min-width:0}
 .topbar-left{justify-content:flex-start;flex-wrap:wrap}
 .topbar-center{
   justify-self:center;
@@ -114,6 +116,7 @@ button,input{font:inherit;color:inherit}
 .face-chips{
   flex:none;
   flex-wrap:nowrap;
+  gap:var(--chip-gap);
 }
 
 /* OTF stays a toolbar sibling; pin lands hold sticky slots. */
@@ -203,7 +206,26 @@ canvas.raster{
 @keyframes caret-blink{50%{opacity:0}}
 
 .dock{
-  display:grid;gap:var(--s8);align-content:start;
+  display:grid;gap:var(--chip-gap);align-content:start;
+}
+.dock-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:var(--chip-gap);
+  width:100%;
+  min-width:0;
+}
+.dock-morph{
+  align-items:center;
+}
+.dock-actions{
+  justify-content:space-between;
+  align-items:flex-end;
+}
+.dock-exports{
+  flex:none;
+  margin-left:auto;
 }
 body.is-busy{cursor:progress}
 body.is-busy .otf-btn{opacity:.72;pointer-events:none}
@@ -212,14 +234,14 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
 
-.chips{display:flex;flex-wrap:wrap;gap:var(--s8);align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:var(--chip-gap);align-items:center}
 .chip,
 .specimen-chip{
   appearance:none;border:0;outline:0;box-shadow:none;
   display:inline-flex;align-items:center;justify-content:center;
   box-sizing:border-box;
   height:var(--chip-h);min-height:var(--chip-h);max-height:var(--chip-h);
-  padding:0 var(--s16);border-radius:999px;
+  padding:0 12px;border-radius:999px;
   background:var(--chip);color:var(--ink);
   font:700 var(--fs-x)/1 var(--f);
   white-space:nowrap;
@@ -228,15 +250,36 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
   cursor:pointer;
   transition:background .15s,color .15s,opacity .15s;
 }
-.chip[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.chip[aria-pressed=true],
+.chip-rect[aria-expanded=true]{background:var(--accent);color:var(--bg)}
+.chip-rect{
+  border-radius:10px;
+  flex:none;
+}
 .specimen-chip{
   pointer-events:none;
   user-select:none;
 }
 
+.morph-chips{
+  display:none;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:var(--chip-gap);
+  flex:0 1 auto;
+  width:auto;
+  max-width:100%;
+  min-width:0;
+  max-height:none;
+}
+.morph-chips:not([hidden]){
+  display:flex;
+}
+
 @media (hover:hover){
   .chip:hover,
-  .chip[aria-pressed=true]:hover{
+  .chip[aria-pressed=true]:hover,
+  .chip-rect[aria-expanded=true]:hover{
     background:var(--accent);
     color:var(--bg);
   }
@@ -245,55 +288,17 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
   input[type=range].ios:hover::-moz-range-thumb{background:var(--accent)}
 }
 
-.dock-main{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
-  gap:var(--s16) clamp(1rem, 3vw, 2.5rem);
-  align-items:start;
-  width:100%;
-}
-.dock-col{
-  display:grid;
-  gap:10px;
-  min-width:0;
-}
-.dock-col-shapes{
-  justify-items:stretch;
-}
 .params{
   display:grid;
   grid-template-columns:minmax(0, 1fr);
-  gap:var(--s8) var(--s16);
-  width:100%;
+  gap:var(--chip-gap);
+  flex:1 1 12rem;
+  width:auto;
   max-width:280px;
+  min-width:0;
 }
 .params[hidden]{display:none!important}
 
-.morph-group{
-  display:grid;
-  gap:6px;
-  width:100%;
-  min-width:0;
-}
-.morph-label{
-  margin:0;
-  font:700 var(--fs-x)/var(--lh-x) var(--f);
-  letter-spacing:.01em;
-  color:var(--fg);
-}
-.morph-chips{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  width:100%;
-  max-height:7.5rem;
-  overflow:auto;
-  padding-bottom:2px;
-  -webkit-overflow-scrolling:touch;
-}
-.dock-col-shapes .morph-chips{
-  justify-content:flex-end;
-}
 label.field{
   display:grid;gap:4px;min-width:0;
   font:700 var(--fs-x)/var(--lh-x) var(--f);letter-spacing:.01em;color:var(--fg);
@@ -335,16 +340,6 @@ input[type=range].ios::-moz-range-thumb{
   box-shadow:0 1px 3px var(--shade),0 0 0 0.5px var(--shade-soft);
   transition:background .15s;
 }
-
-.toolbar{
-  display:grid;
-  grid-template-columns:1fr auto;
-  gap:var(--s8);
-  align-items:center;
-}
-.toolbar-left,.toolbar-right{display:flex;flex-wrap:wrap;gap:var(--s8);align-items:center}
-.toolbar-left{justify-content:flex-start}
-.toolbar-right{justify-content:flex-end;align-items:center}
 
 .sr-only{
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
@@ -443,26 +438,11 @@ input[type=range].ios::-moz-range-thumb{
   transition:color .15s;
 }
 
-/* —— Tablet —— */
-@media (max-width:960px){
-  .toolbar{
-    grid-template-columns:1fr;
-    justify-items:stretch;
-    gap:var(--s8);
-  }
-  .toolbar-left,.toolbar-right{
-    width:100%;
-    justify-content:space-between;
-  }
-  .toolbar-left{order:1}
-  .toolbar-right{order:2}
-}
-
 /* —— Mobile —— */
 @media (max-width:720px){
   :root{
     --pad:12px;
-    --s8:6px;
+    --chip-gap:6px;
   }
 
   /* Equal top/bottom page padding (safe-area aware). */
@@ -507,7 +487,7 @@ input[type=range].ios::-moz-range-thumb{
   .topbar{
     display:grid;
     grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-    align-items:center;
+    align-items:start;
     /* ≥ 2× side page pad between brand and side controls */
     column-gap:calc(var(--pad) * 2);
     min-height:var(--chip-h);
@@ -525,8 +505,9 @@ input[type=range].ios::-moz-range-thumb{
     width:auto;
     min-width:0;
     flex-wrap:nowrap;
+    align-items:flex-start;
   }
-  .topbar-left{justify-content:flex-start;gap:var(--s8)}
+  .topbar-left{justify-content:flex-start;gap:var(--chip-gap)}
   .topbar-right{justify-content:flex-end}
   .face-chips .chip{padding:0 10px}
   .scale-field{
@@ -547,7 +528,7 @@ input[type=range].ios::-moz-range-thumb{
   }
 
   .dock{
-    gap:8px;
+    gap:var(--chip-gap);
     width:100%;
     min-height:0;
     /* Definite cap so grid 1fr can enlarge the stage (%% max-height is cyclic). */
@@ -557,53 +538,27 @@ input[type=range].ios::-moz-range-thumb{
     -webkit-overflow-scrolling:touch;
   }
 
-  .dock-main{
-    grid-template-columns:1fr;
-    gap:10px;
-  }
-  .dock-col-shapes .morph-chips{justify-content:flex-start}
-
   .params{
     max-width:none;
-    gap:8px 12px;
+    flex:1 1 100%;
   }
 
-  .morph-chips{
-    max-height:none;
-    overflow:visible;
+  .dock-actions{
+    flex-direction:column;
+    align-items:stretch;
   }
-
-  .specimen-block-input.is-readonly-mobile,
-  .specimen-block-input[readonly]{
-    pointer-events:none;
-    caret-color:transparent;
-  }
-
-  /* Random + exports on one row; same chip size everywhere. */
-  .toolbar{
-    display:grid;
-    grid-template-columns:auto minmax(0,1fr);
-    gap:6px;
-    align-items:center;
-  }
-  .toolbar-left,
-  .toolbar-right{
-    width:auto;
-  }
-  .toolbar-left{justify-content:flex-start}
-  .toolbar-right{justify-content:stretch}
-  .toolbar-left .chip{width:auto}
-  .toolbar-right.chips{
+  .dock-exports{
+    margin-left:0;
     width:100%;
     display:grid;
     grid-template-columns:repeat(4, minmax(0, 1fr));
-    gap:6px;
+    gap:var(--chip-gap);
   }
-  .toolbar-right .chip{
+  .dock-exports .chip{
     width:100%;
     justify-content:center;
   }
-  .toolbar-right .otf-btn,
+  .dock-exports .otf-btn,
   .otf-btn.is-fixed{
     width:auto;
     max-width:none;
@@ -611,10 +566,16 @@ input[type=range].ios::-moz-range-thumb{
     justify-content:center;
     white-space:nowrap;
   }
-  .toolbar-right .otf-anchor{
+  .dock-exports .otf-anchor{
     display:flex;
     justify-content:center;
     width:100%;
+  }
+
+  .specimen-block-input.is-readonly-mobile,
+  .specimen-block-input[readonly]{
+    pointer-events:none;
+    caret-color:transparent;
   }
 
   .chip,
@@ -669,10 +630,9 @@ input[type=range].ios::-moz-range-thumb{
 }
 
 @media (max-width:420px){
-  .toolbar-right.chips{
+  .dock-exports{
     grid-template-columns:repeat(2, minmax(0, 1fr));
   }
-  .params{gap:8px}
   .chip,
   .specimen-chip{padding:0 8px}
   .brand-sticky.brand-pill{max-width:min(40vw, 140px);padding:5px 10px}

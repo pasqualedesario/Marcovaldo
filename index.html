@@ -86,31 +86,21 @@
     </div>
 
     <div class="dock" id="dock">
-      <div class="dock-main">
-        <div class="dock-col">
-          <div class="params" id="params">
-            <label class="field" data-param="growth" title="Crescita">
-              <span id="growth-label">Crescita</span> <span class="val" id="v-growth" aria-live="polite">70</span>
-              <input id="p-growth" class="ios" type="range" min="0" max="100" value="70" aria-label="Crescita">
-            </label>
-          </div>
-          <div class="morph-group">
-            <span class="morph-label" data-i18n="marginsAria">Margine</span>
-            <div class="chips morph-chips" id="margins" role="group" aria-label="Margine"></div>
-          </div>
-        </div>
-        <div class="dock-col dock-col-shapes">
-          <div class="morph-group">
-            <span class="morph-label" data-i18n="shapesAria">Forma</span>
-            <div class="chips morph-chips" id="shapes" role="group" aria-label="Forma"></div>
-          </div>
-        </div>
+      <div class="dock-row dock-morph" id="dock-morph">
+        <button type="button" class="chip chip-rect" id="margins-toggle" aria-expanded="false" aria-controls="margins" data-i18n="marginsAria">Margine</button>
+        <div class="chips morph-chips" id="margins" role="group" aria-label="Margine" hidden></div>
+        <button type="button" class="chip chip-rect" id="shapes-toggle" aria-expanded="false" aria-controls="shapes" data-i18n="shapesAria">Forma</button>
+        <div class="chips morph-chips" id="shapes" role="group" aria-label="Forma" hidden></div>
+        <button type="button" class="chip chip-rect" id="reshuffle" data-i18n="reshuffle">Random</button>
       </div>
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <button class="chip" id="reshuffle" type="button">Random</button>
+      <div class="dock-row dock-actions">
+        <div class="params" id="params">
+          <label class="field" data-param="growth" title="Crescita">
+            <span id="growth-label">Crescita</span> <span class="val" id="v-growth" aria-live="polite">70</span>
+            <input id="p-growth" class="ios" type="range" min="0" max="100" value="70" aria-label="Crescita">
+          </label>
         </div>
-        <div class="toolbar-right chips">
+        <div class="chips dock-exports">
           <button class="chip" id="png" type="button">↓ PNG</button>
           <button class="chip" id="svg" type="button">↓ SVG</button>
           <button class="chip" id="pdf" type="button">↓ PDF</button>

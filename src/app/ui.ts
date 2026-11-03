@@ -59,6 +59,8 @@ function applyStaticI18n(): void {
   document.getElementById('text')?.setAttribute('aria-label', d.textAria);
   document.getElementById('shapes')?.setAttribute('aria-label', d.shapesAria);
   document.getElementById('margins')?.setAttribute('aria-label', d.marginsAria);
+  document.getElementById('shapes-toggle')?.setAttribute('aria-label', d.shapesAria);
+  document.getElementById('margins-toggle')?.setAttribute('aria-label', d.marginsAria);
   document.querySelector('.specimen-section')?.setAttribute('aria-label', d.specimensAria);
 
   const growthLabel = d.params.growth ?? 'Crescita';
@@ -97,17 +99,42 @@ function wireMorphUi(opts: {
   stage: HTMLElement;
   shapesEl: HTMLElement;
   marginsEl: HTMLElement;
+  shapesToggle: HTMLButtonElement;
+  marginsToggle: HTMLButtonElement;
   scaleEl: HTMLInputElement;
   trackingEl: HTMLInputElement;
   trackingValEl: HTMLElement;
   textEl: HTMLInputElement;
 }): MorphUi {
   const {
-    state, engine, stage, shapesEl, marginsEl, scaleEl, trackingEl, trackingValEl, textEl
+    state,
+    engine,
+    stage,
+    shapesEl,
+    marginsEl,
+    shapesToggle,
+    marginsToggle,
+    scaleEl,
+    trackingEl,
+    trackingValEl,
+    textEl
   } = opts;
+
+  type MorphPanel = 'margins' | 'shapes' | null;
+  let openPanel: MorphPanel = null;
 
   const syncTextField = () => {
     textEl.value = state.text;
+  };
+
+  const setPanel = (panel: MorphPanel) => {
+    openPanel = panel;
+    const marginsOpen = panel === 'margins';
+    const shapesOpen = panel === 'shapes';
+    marginsEl.hidden = !marginsOpen;
+    shapesEl.hidden = !shapesOpen;
+    marginsToggle.setAttribute('aria-expanded', marginsOpen ? 'true' : 'false');
+    shapesToggle.setAttribute('aria-expanded', shapesOpen ? 'true' : 'false');
   };
 
   const fillChips = <T extends string>(
@@ -146,6 +173,14 @@ function wireMorphUi(opts: {
       applyMargin(state, id as LeafMargin);
     });
   };
+
+  marginsToggle.addEventListener('click', () => {
+    setPanel(openPanel === 'margins' ? null : 'margins');
+  });
+  shapesToggle.addEventListener('click', () => {
+    setPanel(openPanel === 'shapes' ? null : 'shapes');
+  });
+  setPanel(null);
 
   const growthEl = $input('p-growth');
   const growthValEl = $('v-growth');
@@ -365,6 +400,8 @@ export function mountApp(state: AppState): void {
     stage,
     shapesEl,
     marginsEl,
+    shapesToggle: $('shapes-toggle') as HTMLButtonElement,
+    marginsToggle: $('margins-toggle') as HTMLButtonElement,
     scaleEl,
     trackingEl,
     trackingValEl,
