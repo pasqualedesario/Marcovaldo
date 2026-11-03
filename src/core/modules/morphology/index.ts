@@ -1,4 +1,4 @@
-import type { BotanicalParams, Contour, Contours, ModuleInfo, Pt } from '../../types';
+import type { BotanicalParams, Contour, Contours, Pt } from '../../types';
 import { chaikin, rng, ss } from '../../path/ops';
 import {
   clampMargin,
@@ -7,14 +7,11 @@ import {
   type LeafShape
 } from './catalog';
 
-export const MORPHOLOGY_MODULE: ModuleInfo = {
-  id: 'leaf-morphology',
-  version: '1.2.0',
-  label: 'Leaf morphology'
-};
+const MODULE_ID = 'leaf-morphology';
+const MODULE_VERSION = '1.3.0';
 
 export function moduleStamp(): string {
-  return `${MORPHOLOGY_MODULE.id}@${MORPHOLOGY_MODULE.version}`;
+  return `${MODULE_ID}@${MODULE_VERSION}`;
 }
 
 export type MorphologySpec = {
@@ -84,7 +81,6 @@ function buildRing(contour: Contour, spacing: number): LivingRing | null {
   const count = Math.max(12, Math.round(total / Math.max(spacing * 0.45, 0.5)));
   const step = total / count;
   const pts: Contour = new Array(count);
-  const c = centroid(contour);
 
   let acc = 0;
   let i = 0;
@@ -101,34 +97,17 @@ function buildRing(contour: Contour, spacing: number): LivingRing | null {
     pts[k] = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   }
 
-  const tx = new Float64Array(count);
-  const ty = new Float64Array(count);
-  const nx = new Float64Array(count);
-  const ny = new Float64Array(count);
-  for (let k = 0; k < count; k++) {
-    const prev = pts[(k - 1 + count) % count]!;
-    const next = pts[(k + 1) % count]!;
-    const dx = next.x - prev.x;
-    const dy = next.y - prev.y;
-    const L = hypot(dx, dy);
-    tx[k] = dx / L;
-    ty[k] = dy / L;
-    let ngx = -ty[k]!;
-    let ngy = tx[k]!;
-    const p = pts[k]!;
-    if (ngx * (c.x - p.x) + ngy * (c.y - p.y) > 0) {
-      ngx = -ngx;
-      ngy = -ngy;
-    }
-    nx[k] = ngx;
-    ny[k] = ngy;
-  }
-
-  return {
-    pts, tx, ty, nx, ny,
+  const ring: LivingRing = {
+    pts,
+    tx: new Float64Array(count),
+    ty: new Float64Array(count),
+    nx: new Float64Array(count),
+    ny: new Float64Array(count),
     field: new Float64Array(count),
     tmp: new Float64Array(count)
   };
+  refreshRingFrames(ring);
+  return ring;
 }
 
 /** Recompute tangents + outward normals (away from ring centroid). */
@@ -156,21 +135,87 @@ function refreshRingFrames(ring: LivingRing): void {
   }
 }
 
+/** Ray ↔ segment; returns distance along ray or null. */
+function raySegmentHit(
+  ox: number,
+  oy: number,
+  dx: number,
+  dy: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number
+): number | null {
+  const ex = bx - ax;
+  const ey = by - ay;
+  const den = dx * ey - dy * ex;
+  if (Math.abs(den) < 1e-10) return null;
+  const fx = ax - ox;
+  const fy = ay - oy;
+  const t = (fx * ey - fy * ex) / den;
+  const u = (fx * dy - fy * dx) / den;
+  if (t <= 1e-4 || u < 0 || u > 1) return null;
+  return t;
+}
+
+/** Nearest forward hit of a ray against one closed contour. */
+function rayContourHit(
+  ox: number,
+  oy: number,
+  dx: number,
+  dy: number,
+  contour: Contour,
+  minT: number
+): number {
+  let best = Infinity;
+  const n = contour.length;
+  for (let i = 0; i < n; i++) {
+    const a = contour[i]!;
+    const b = contour[(i + 1) % n]!;
+    const t = raySegmentHit(ox, oy, dx, dy, a.x, a.y, b.x, b.y);
+    if (t !== null && t > minT && t < best) best = t;
+  }
+  return best;
+}
+
+/** Local stroke width via inward ray against all glyph contours. */
+function strokeWidthAt(
+  ox: number,
+  oy: number,
+  nx: number,
+  ny: number,
+  contours: Contours,
+  maxSearch: number
+): number {
+  // Outward normal → march −n into the ink until the opposite edge.
+  const dx = -nx;
+  const dy = -ny;
+  let best = Infinity;
+  for (let ci = 0; ci < contours.length; ci++) {
+    const hit = rayContourHit(ox, oy, dx, dy, contours[ci]!, 0.4);
+    if (hit < best) best = hit;
+  }
+  if (!Number.isFinite(best) || best > maxSearch) return maxSearch * 0.22;
+  return best;
+}
+
 /**
- * Pull contour samples toward the stroke skeleton (into the ink),
- * away from the outline. Uses inward offset along −normal, clamped
- * by distance-to-centroid so counters stay stable.
+ * Move ring samples onto the stroke skeleton (medial axis approx):
+ * for each outline sample, half the local ink width along the inward normal.
  */
-function insetRingToSkeleton(ring: LivingRing, maxInset: number, frac = 0.48): void {
+function insetRingToSkeleton(
+  ring: LivingRing,
+  contours: Contours,
+  maxInset: number
+): void {
   if (maxInset <= 0) return;
   const pts = ring.pts;
   const n = pts.length;
-  const c = centroid(pts);
+  const maxSearch = Math.max(maxInset * 5, 10);
   for (let i = 0; i < n; i++) {
     const p = pts[i]!;
-    const dist = hypot(c.x - p.x, c.y - p.y);
-    const inset = Math.min(maxInset, dist * frac);
-    // Outward normal points away from centroid → −n moves into the ink.
+    const width = strokeWidthAt(p.x, p.y, ring.nx[i]!, ring.ny[i]!, contours, maxSearch);
+    const inset = Math.min(maxInset, width * 0.5);
     pts[i] = {
       x: p.x - ring.nx[i]! * inset,
       y: p.y - ring.ny[i]! * inset
@@ -513,25 +558,32 @@ function stampFlora(
   const leanN = makeNoise1D(R, Math.max(5, Math.round(stamps.length / 10)));
   let alt = R() < 0.5 ? 1 : -1;
 
+  // Low growth → sparse buds; density eases in with grow².
+  const keepChance = 0.12 + grow * grow * 0.88;
+
   for (let i = 0; i < stamps.length; i++) {
     const s = stamps[i]!;
     const phase = i / stamps.length;
+    if (R() > keepChance) {
+      alt *= -1;
+      continue;
+    }
     const field = 0.5 + 0.55 * s.field;
     const organic = 0.75 + 0.5 * R();
     const pulse = 1 - 0.25 * (0.5 + 0.5 * Math.sin(i * 0.73 + grow));
-    if (s.field < 0.12 + (1 - grow) * 0.08 && R() < 0.2) {
+    if (s.field < 0.18 + (1 - grow) * 0.2 && R() < 0.35) {
       alt *= -1;
       continue;
     }
     const len = amp * field * organic * pulse;
-    if (len < amp * 0.06) {
+    if (len < amp * (0.14 - grow * 0.06)) {
       alt *= -1;
       continue;
     }
 
     // From the skeleton, lean mostly along the stroke with a soft outward tip.
-    let gx = s.tx * 0.55 + s.nx * 0.45;
-    let gy = s.ty * 0.55 + s.ny * 0.45;
+    let gx = s.tx * 0.7 + s.nx * 0.3;
+    let gy = s.ty * 0.7 + s.ny * 0.3;
     const gl = hypot(gx, gy);
     gx /= gl;
     gy /= gl;
@@ -548,8 +600,8 @@ function stampFlora(
 }
 
 /**
- * Flora stamps along the glyph skeleton (inset from contours).
- * Growth drives size, density, and organic jitter.
+ * Flora stamps along the glyph stroke skeleton (medial-axis approx).
+ * Growth eases in from zero — amp and density both start near empty.
  */
 export function applyMorphology(
   contours: Contours,
@@ -559,9 +611,10 @@ export function applyMorphology(
   spec: MorphologySpec
 ): Contours {
   const g = Math.min(1, Math.max(0, params.growth * 0.01));
-  if (g <= 0) return contours.map((c) => c.slice());
+  if (g <= 1e-4) return contours.map((c) => c.slice());
 
-  const grow = ss(0, 1, Math.pow(g, 0.85));
+  // Strong ease-in: slider 0→1% stays tiny buds, not a full canopy.
+  const grow = ss(0, 1, Math.pow(g, 1.65));
   const shape = spec.shape;
   const margin = clampMargin(shape, spec.margin);
 
@@ -576,9 +629,10 @@ export function applyMorphology(
       : group === 'needle' ? 0.04
         : 0.06;
 
-  const spacing = fontSize * Math.max(0.016, baseSpacing * (1.7 - grow * 0.55));
-  const amp = baseAmp * fontSize * (0.28 + grow * 1.05);
-  const skeletonInset = Math.max(spacing * 0.85, amp * (0.38 + grow * 0.22));
+  // Amp ∝ grow² at the start so the first notch is barely visible.
+  const amp = baseAmp * fontSize * (0.05 * grow + 1.2 * grow * grow);
+  const spacing = fontSize * Math.max(0.02, baseSpacing * (2.15 - grow * 0.95));
+  const skeletonInset = Math.max(spacing * 0.5, fontSize * 0.04 * (0.35 + grow * 0.65));
 
   const R = rng(seed);
   const lamina: Contours = [];
@@ -589,11 +643,11 @@ export function applyMorphology(
     const Rc = rng(`${seed}|c${i}|${(R() * 1e9) | 0}`);
     const ring = buildRing(c, Math.max(0.8, spacing * 0.35));
     if (!ring) continue;
-    insetRingToSkeleton(ring, skeletonInset, 0.5);
+    insetRingToSkeleton(ring, contours, skeletonInset);
     seedField(ring, Rc);
-    diffuseField(ring, 2 + Math.round(grow * 4), 0.28);
-    reactField(ring.field, 0.04 * grow);
-    if (grow > 0.4) diffuseField(ring, 2, 0.18);
+    diffuseField(ring, 1 + Math.round(grow * 4), 0.28);
+    reactField(ring.field, 0.035 * grow);
+    if (grow > 0.35) diffuseField(ring, 2, 0.18);
 
     const stamps = stampsFromRing(ring, spacing);
     const leaves = stampFlora(stamps, { amp, grow, shape, margin, R: Rc });
@@ -605,12 +659,10 @@ export function applyMorphology(
 
 export {
   LEAF_SHAPES,
-  LEAF_MARGINS,
   DEFAULT_SHAPE,
   DEFAULT_MARGIN,
   marginsFor,
   clampMargin,
-  isLeafShape,
-  shapeGroup
+  isLeafShape
 } from './catalog';
-export type { LeafShape, LeafMargin, ShapeGroup } from './catalog';
+export type { LeafShape, LeafMargin } from './catalog';

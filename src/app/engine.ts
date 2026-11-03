@@ -99,7 +99,7 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
     const H = Math.max(240, Math.floor(rect.height));
     state.width = W;
     state.height = H;
-    const target = specimenFontSize(W, H, state.scale);
+    const target = specimenFontSize(state.scale);
 
     if (!state.font) {
       clearStage(W, H);

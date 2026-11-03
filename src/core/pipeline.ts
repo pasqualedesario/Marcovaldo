@@ -28,7 +28,7 @@ const FLATTEN_STEPS = 8;
 const SPECIMEN_LEADING = 1.1;
 const OPEN_QUALITY_PX = 96;
 
-export function specimenFontSize(_width: number, _height: number, scale: number): number {
+export function specimenFontSize(scale: number): number {
   const minPx = MIN_SIZE_PT * PT_TO_PX;
   const maxPx = MAX_SIZE_PT * PT_TO_PX;
   const t = Math.min(100, Math.max(0, scale)) / 100;
@@ -107,7 +107,7 @@ export function buildSpecimen(input: SpecimenInput): FitResult | null {
   const { font, text, params, morph, offset, width: W, height: H } = input;
   if (!text) return null;
 
-  const fontSize = specimenFontSize(W, H, params.scale);
+  const fontSize = specimenFontSize(params.scale);
   const layout = textToPath(font.face, text, fontSize, trackingEm(params.tracking));
   const deformed = deformText(font, text, params, morph, offset, fontSize, layout);
   if (!deformed?.length) return null;

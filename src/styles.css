@@ -13,25 +13,21 @@
   --accent:var(--color-accent);
 
   --fg-muted:color-mix(in srgb,var(--fg) 72%,var(--bg));
-  /* Frosted pills: yellow fill, dark olive type */
+  /* Solid pills: yellow fill, dark olive type */
   --chip:var(--fg);
   --ink:var(--bg);
-  --pressed:var(--bg);
-  --glass:color-mix(in srgb,var(--fg) 78%,transparent);
-  --halo:color-mix(in srgb,var(--bg) 18%,transparent);
   --knob:var(--fg);
   --track:color-mix(in srgb,var(--fg) 28%,transparent);
   --shade:color-mix(in srgb,var(--bg) 22%,transparent);
   --shade-soft:color-mix(in srgb,var(--bg) 8%,transparent);
-  --glass-shine:color-mix(in srgb,var(--fg) 35%,transparent);
-  --glass-bg:linear-gradient(180deg,var(--glass-shine),transparent 55%),var(--glass);
 
   --font-sans:'FOSS Modern',ui-sans-serif,system-ui,sans-serif;
   --f:var(--font-sans);
   --fw:700;
   --fs-m:clamp(18px, 1.4vw + 14px, 20px);
+  /* One UI size for chips, buttons, credits, specimen pt labels. */
   --fs-x:clamp(14.5px, .9vw + 11.5px, 16px); --lh-x:1.32;
-  --fs-s:clamp(11px, .4vw + 9px, 12px); --lh-s:clamp(13px, .35vw + 11px, 14px);
+  --chip-h:40px;
   --s8:8px; --s16:16px;
   --pad:var(--s16);
   --pad-t:max(var(--pad), env(safe-area-inset-top, 0px));
@@ -94,30 +90,34 @@ button,input{font:inherit;color:inherit}
 .topbar-left{justify-content:flex-start;flex-wrap:wrap}
 .topbar-center{
   justify-self:center;
-  min-height:44px;min-width:min(42vw, 280px);
+  min-height:var(--chip-h);min-width:min(42vw, 280px);
 }
 .topbar-right{justify-content:flex-end}
 
-.brand-glass{
+.brand-pill{
   display:inline-flex;align-items:center;justify-content:center;
   width:max-content;max-width:min(92vw, 420px);
-  min-height:44px;padding:10px var(--s16);border-radius:28px;border:0;outline:none;
-  background:var(--glass-bg);color:var(--ink);
+  min-height:var(--chip-h);padding:10px var(--s16);border-radius:28px;border:0;outline:none;
+  background:var(--chip);color:var(--ink);
   font:700 var(--fs-m)/1.25 var(--f);
   letter-spacing:0.01em;
   -webkit-font-smoothing:antialiased;
-  -webkit-backdrop-filter:blur(30px) saturate(1.9) brightness(1.06);
-  backdrop-filter:blur(30px) saturate(1.9) brightness(1.06);
-  box-shadow:0 12px 34px var(--halo),inset 0 1px 0 color-mix(in srgb,#fff 35%,transparent);
   user-select:none;white-space:nowrap;
-  transition:color .15s;
 }
-.brand-glass:focus,.brand-glass:focus-visible{outline:none!important}
+.brand-pill:focus,.brand-pill:focus-visible{outline:none!important}
 
-/* ↓ OTF + lang: glass fill, identical box to .chip */
+.brand-svg{
+  display:block;height:1.15em;width:auto;max-width:min(80vw, 360px);
+  overflow:visible;
+}
+
+.face-chips{
+  flex:none;
+  flex-wrap:nowrap;
+}
+
+/* OTF stays a toolbar sibling; pin lands hold sticky slots. */
 .otf-anchor{
-  /* contents → OTF is a real flex sibling of PNG/SVG/PDF (no wrapper offset).
-     otfPin switches to inline-flex only while the button is position:fixed. */
   display:contents;
 }
 .otf-land,
@@ -126,7 +126,7 @@ button,input{font:inherit;color:inherit}
   align-items:flex-end;
   flex:none;
   pointer-events:none;
-  min-height:44px;
+  min-height:var(--chip-h);
 }
 .otf-land{
   grid-column:3;grid-row:1;
@@ -142,101 +142,17 @@ button,input{font:inherit;color:inherit}
 .lang-land .lang-btn{
   pointer-events:auto;
 }
-.brand-glass.otf-btn,
-.brand-glass.lang-btn{
-  appearance:none;
-  cursor:pointer;
-  border:0;
-  outline:0;
-  box-sizing:border-box;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  height:44px;
-  min-height:44px;
-  max-height:44px;
-  padding:0 var(--s16);
-  border-radius:999px;
-  font:700 var(--fs-x)/1 var(--f);
-  letter-spacing:0;
-  pointer-events:auto;
+.otf-btn,
+.lang-btn{
   position:relative;
   z-index:40;
   flex:none;
-  box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 35%,transparent);
-  -webkit-backdrop-filter:blur(18px) saturate(1.6);
-  backdrop-filter:blur(18px) saturate(1.6);
-  transition:background .15s, color .15s;
 }
-.brand-glass.otf-btn.is-fixed,
-.brand-glass.lang-btn.is-fixed{
+.otf-btn.is-fixed,
+.lang-btn.is-fixed{
   position:fixed;
   margin:0;
   z-index:40;
-}
-
-.brand-svg{
-  display:block;height:1.15em;width:auto;max-width:min(80vw, 360px);
-  overflow:visible;
-}
-
-.face-switch{
-  --face-pad:4px;
-  position:relative;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  align-items:stretch;
-  gap:0;
-  flex:none;
-  min-width:168px;
-  height:44px;
-  padding:var(--face-pad);
-  border-radius:14px 22px 12px 20px;
-  background:color-mix(in srgb,var(--fg) 16%,transparent);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fg) 22%,transparent);
-  overflow:hidden;
-  cursor:default;
-  transition:box-shadow .2s ease, background .2s ease;
-}
-.face-switch-thumb{
-  position:absolute;
-  z-index:0;
-  top:var(--face-pad);bottom:var(--face-pad);left:var(--face-pad);
-  width:calc(50% - var(--face-pad));
-  border-radius:10px 18px 8px 16px;
-  background:var(--accent);
-  box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 35%,transparent);
-  transition:transform .28s cubic-bezier(.22,1,.36,1), border-radius .28s ease;
-  pointer-events:none;
-}
-.face-switch[data-face=serif] .face-switch-thumb{
-  transform:translateX(100%);
-  border-radius:18px 10px 16px 8px;
-}
-.face-switch .face-opt{
-  position:relative;z-index:1;
-  appearance:none;border:0;margin:0;
-  display:inline-flex;align-items:center;justify-content:center;
-  padding:0 14px;
-  background:transparent;
-  color:var(--fg-muted);
-  font:700 var(--fs-x)/1 var(--f);
-  letter-spacing:0.02em;
-  cursor:pointer;
-  transition:color .2s ease, transform .2s ease;
-}
-.face-switch .face-opt.is-on{
-  color:var(--bg);
-}
-@media (hover:hover){
-  .face-switch:hover{
-    background:color-mix(in srgb,var(--fg) 22%,transparent);
-    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent);
-  }
-  .face-switch .face-opt:not(.is-on):hover{
-    color:var(--fg);
-    transform:translateY(-1px);
-  }
 }
 
 .stage{
@@ -297,23 +213,29 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
 }
 
 .chips{display:flex;flex-wrap:wrap;gap:var(--s8);align-items:center}
-.chip{
+.chip,
+.specimen-chip{
   appearance:none;border:0;outline:0;box-shadow:none;
   display:inline-flex;align-items:center;justify-content:center;
   box-sizing:border-box;
-  height:44px;min-height:44px;max-height:44px;
+  height:var(--chip-h);min-height:var(--chip-h);max-height:var(--chip-h);
   padding:0 var(--s16);border-radius:999px;
   background:var(--chip);color:var(--ink);
-  font:700 var(--fs-x)/1 var(--f);cursor:pointer;
-  transition:background .15s,color .15s,opacity .15s;
+  font:700 var(--fs-x)/1 var(--f);
   white-space:nowrap;
 }
+.chip{
+  cursor:pointer;
+  transition:background .15s,color .15s,opacity .15s;
+}
 .chip[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.specimen-chip{
+  pointer-events:none;
+  user-select:none;
+}
 
 @media (hover:hover){
   .chip:hover,
-  .brand-glass.otf-btn:hover,
-  .brand-glass.lang-btn:hover,
   .chip[aria-pressed=true]:hover{
     background:var(--accent);
     color:var(--bg);
@@ -355,7 +277,7 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
 }
 .morph-label{
   margin:0;
-  font:700 var(--fs-s)/var(--lh-s) var(--f);
+  font:700 var(--fs-x)/var(--lh-x) var(--f);
   letter-spacing:.01em;
   color:var(--fg);
 }
@@ -372,16 +294,11 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
 .dock-col-shapes .morph-chips{
   justify-content:flex-end;
 }
-.morph-chips .chip{
-  height:36px;min-height:36px;max-height:36px;
-  padding:0 12px;
-  font-size:var(--fs-s);
-}
 label.field{
   display:grid;gap:4px;min-width:0;
-  font:700 var(--fs-s)/var(--lh-s) var(--f);letter-spacing:.01em;color:var(--fg);
+  font:700 var(--fs-x)/var(--lh-x) var(--f);letter-spacing:.01em;color:var(--fg);
 }
-label.field .val{font:400 var(--fs-s)/var(--lh-s) var(--f);font-variant-numeric:tabular-nums;color:var(--fg-muted)}
+label.field .val{font:400 var(--fs-x)/var(--lh-x) var(--f);font-variant-numeric:tabular-nums;color:var(--fg-muted)}
 .scale-field,
 .tracking-field{
   width:min(160px, 28vw);
@@ -445,13 +362,6 @@ input[type=range].ios::-moz-range-thumb{
   display:flex;flex-direction:column;align-items:center;gap:0.75rem;
   width:100%;
 }
-.specimen-chip{
-  display:inline-flex;align-items:center;justify-content:center;
-  min-height:32px;padding:0 14px;border-radius:999px;
-  background:var(--chip);color:var(--ink);
-  font:700 var(--fs-s)/1 var(--f);
-  pointer-events:none;user-select:none;white-space:nowrap;
-}
 .specimen-lines{
   position:relative;
   display:flex;flex-direction:column;align-items:center;gap:0;
@@ -498,31 +408,25 @@ input[type=range].ios::-moz-range-thumb{
   justify-self:center;
   grid-column:1 / -1;
   grid-row:1;
-  display:grid;
-  grid-template-columns:auto auto;
-  grid-template-areas:
-    "note by"
-    "morph type";
-  column-gap:clamp(2rem, 5vw, 4rem);
-  row-gap:0.55rem;
-  align-items:start;
-  justify-content:center;
-  justify-items:start;
-  text-align:left;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:0.55rem;
+  width:100%;
+  max-width:42rem;
+  text-align:center;
   pointer-events:none;
 }
 .credits-body a{pointer-events:auto}
-.credits-note{grid-area:note}
-.credits-morph{grid-area:morph}
-.credits-by{grid-area:by}
-.credits-type{grid-area:type}
 .credits-note,
 .credits-morph,
-.credits-by{
+.credits-by,
+.credits-type{
   margin:0;
   max-width:42ch;
-  font:700 var(--fs-s)/var(--lh-s) var(--f);
+  font:700 var(--fs-x)/var(--lh-x) var(--f);
   color:var(--fg-muted);
+  text-align:center;
 }
 .credits-note em{
   font-weight:700;
@@ -568,67 +472,90 @@ input[type=range].ios::-moz-range-thumb{
   }
 
   .workspace{
-    height:auto;
+    height:calc(
+      100dvh
+      - max(var(--pad), env(safe-area-inset-top, 0px))
+      - max(var(--pad), env(safe-area-inset-bottom, 0px))
+    );
     min-height:0;
     gap:10px;
-    display:flex;
-    flex-direction:column;
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr) auto;
   }
 
-  /* Brand on top, no overlap into the topbar. */
-  .brand-sticky{
-    position:relative;
-    top:auto;
-    margin:0 auto;
-    max-width:calc(100% - 8px);
-  }
-  .brand-glass{
+  /*
+   * One row: face · Marcovaldo · scale.
+   * Brand stays a sibling of .workspace (desktop sticky); on mobile it
+   * is absolutely centered over the topbar spacer.
+   */
+  .app{position:relative}
+  .brand-sticky.brand-pill{
+    position:absolute;
+    left:50%;
+    top:max(var(--pad), env(safe-area-inset-top, 0px));
+    transform:translateX(-50%);
+    z-index:50;
+    margin:0;
     font-size:var(--fs-x);
-    padding:8px 14px;
-    min-height:40px;
-    max-width:min(92vw, 320px);
+    padding:6px 12px;
+    min-height:32px;
+    max-width:min(42vw, 168px);
+    pointer-events:none;
   }
-  .brand-svg{max-width:min(72vw, 280px)}
+  .brand-svg{max-width:min(38vw, 148px);height:1em}
 
-  /* Face left · Scale right on one row. */
   .topbar{
-    display:flex;
-    flex-direction:row;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
     align-items:center;
-    justify-content:space-between;
-    gap:10px;
+    /* ≥ 2× side page pad between brand and side controls */
+    column-gap:calc(var(--pad) * 2);
+    min-height:var(--chip-h);
   }
-  .topbar-center{display:none}
+  .topbar-center{
+    display:block;
+    visibility:hidden;
+    width:min(42vw, 168px);
+    min-width:7.5rem;
+    min-height:var(--chip-h);
+    pointer-events:none;
+  }
   .topbar-left,
   .topbar-right{
     width:auto;
-    flex:1 1 0;
     min-width:0;
     flex-wrap:nowrap;
   }
-  .topbar-left{justify-content:flex-start;gap:0}
+  .topbar-left{justify-content:flex-start;gap:var(--s8)}
   .topbar-right{justify-content:flex-end}
-  .face-switch{
-    min-width:140px;
-    height:40px;
-  }
+  .face-chips .chip{padding:0 10px}
   .scale-field{
-    flex:1;
-    width:auto;
-    max-width:160px;
+    flex:none;
+    width:100%;
+    max-width:6.75rem;
     min-width:0;
+    gap:2px;
   }
   .tracking-field{display:none!important}
 
-  /* Compact hero so morph filters stay in the first viewport. */
+  /* Stage takes leftover height; dock stays content-sized. */
   .stage{
-    flex:0 0 auto;
-    height:clamp(132px, 24vh, 188px);
-    min-height:132px;
-    max-height:188px;
+    width:100%;
+    min-height:0;
+    max-height:none;
+    height:auto;
   }
 
-  .dock{gap:8px;width:100%;flex:0 0 auto}
+  .dock{
+    gap:8px;
+    width:100%;
+    min-height:0;
+    /* Definite cap so grid 1fr can enlarge the stage (%% max-height is cyclic). */
+    max-height:42dvh;
+    overflow-x:hidden;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
 
   .dock-main{
     grid-template-columns:1fr;
@@ -645,10 +572,6 @@ input[type=range].ios::-moz-range-thumb{
     max-height:none;
     overflow:visible;
   }
-  .morph-chips .chip{
-    height:34px;min-height:34px;max-height:34px;
-    padding:0 10px;
-  }
 
   .specimen-block-input.is-readonly-mobile,
   .specimen-block-input[readonly]{
@@ -656,7 +579,7 @@ input[type=range].ios::-moz-range-thumb{
     caret-color:transparent;
   }
 
-  /* Random + exports on one row; Random same size as the rest. */
+  /* Random + exports on one row; same chip size everywhere. */
   .toolbar{
     display:grid;
     grid-template-columns:auto minmax(0,1fr);
@@ -669,12 +592,7 @@ input[type=range].ios::-moz-range-thumb{
   }
   .toolbar-left{justify-content:flex-start}
   .toolbar-right{justify-content:stretch}
-  .toolbar-left .chip{
-    width:auto;
-    height:40px;min-height:40px;max-height:40px;
-    padding:0 10px;
-    font-size:var(--fs-s);
-  }
+  .toolbar-left .chip{width:auto}
   .toolbar-right.chips{
     width:100%;
     display:grid;
@@ -685,8 +603,8 @@ input[type=range].ios::-moz-range-thumb{
     width:100%;
     justify-content:center;
   }
-  .toolbar-right .brand-glass.otf-btn,
-  .brand-glass.otf-btn.is-fixed{
+  .toolbar-right .otf-btn,
+  .otf-btn.is-fixed{
     width:auto;
     max-width:none;
     flex:0 0 auto;
@@ -699,16 +617,9 @@ input[type=range].ios::-moz-range-thumb{
     width:100%;
   }
 
-  .chip{
-    height:40px;min-height:40px;max-height:40px;
+  .chip,
+  .specimen-chip{
     padding:0 10px;
-    font-size:var(--fs-s);
-  }
-  .brand-glass.otf-btn,
-  .brand-glass.lang-btn{
-    height:40px;min-height:40px;max-height:40px;
-    padding:0 10px;
-    font:700 var(--fs-s)/1 var(--f);
   }
 
   /* Equal section padding; tighter, even specimen leading. */
@@ -746,33 +657,14 @@ input[type=range].ios::-moz-range-thumb{
   .credits-body{
     grid-column:1 / -1;
     grid-row:2;
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:flex-start;
-    justify-items:start;
-    align-items:baseline;
-    column-gap:0.65rem;
-    row-gap:0.45rem;
-    text-align:left;
+    align-items:center;
+    text-align:center;
   }
-  .credits-note{
-    flex:1 1 100%;
-    max-width:36ch;
-    margin-inline:0;
-  }
+  .credits-note,
   .credits-morph,
   .credits-by,
   .credits-type{
-    flex:0 1 auto;
-    max-width:none;
-  }
-  .credits-by br{display:none}
-  .credits-morph::after,
-  .credits-by::after{
-    content:"·";
-    margin-left:0.65rem;
-    color:var(--fg-muted);
-    font-weight:700;
+    max-width:36ch;
   }
 }
 
@@ -781,5 +673,10 @@ input[type=range].ios::-moz-range-thumb{
     grid-template-columns:repeat(2, minmax(0, 1fr));
   }
   .params{gap:8px}
-  .chip{padding:0 8px}
+  .chip,
+  .specimen-chip{padding:0 8px}
+  .brand-sticky.brand-pill{max-width:min(40vw, 140px);padding:5px 10px}
+  .brand-svg{max-width:min(36vw, 124px)}
+  .topbar-center{width:min(40vw, 140px);min-width:6.5rem}
+  .scale-field{max-width:5.75rem}
 }

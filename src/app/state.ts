@@ -23,8 +23,6 @@ import { allMorphLabels } from '../i18n';
 const randInt = (a: number, b: number) => Math.floor(a + Math.random() * (b - a + 1));
 const clampPct = (n: number) => clamp(n, 0, 100);
 
-export { DEFAULT_BG, DEFAULT_FG };
-
 export type AppState = BotanicalParams & {
   /** Specimen / editable text face (sans or serif). */
   font: LoadedFont | null;

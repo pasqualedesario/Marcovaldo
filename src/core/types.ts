@@ -21,12 +21,6 @@ export type BotanicalParams = {
   tracking: number;
 };
 
-export type ModuleInfo = {
-  readonly id: string;
-  readonly version: string;
-  readonly label: string;
-};
-
 export type FitResult = {
   lamina: Contours;
   fontSize: number;

@@ -17,9 +17,6 @@ export type Dict = {
   faceSerif: string;
   scale: string;
   tracking: string;
-  colors: string;
-  bgColor: string;
-  fgColor: string;
   textAria: string;
   shapesAria: string;
   marginsAria: string;
@@ -39,7 +36,6 @@ export type Dict = {
   creditsBy: string;
   creditsType: string;
   fontMissing: string;
-  fontUnreadable: string;
   glyphMissing: string;
   typeHint: string;
   points: string;
@@ -136,9 +132,6 @@ const IT: Dict = {
   faceSerif: 'Serif',
   scale: 'Scala',
   tracking: 'Tracking',
-  colors: 'Colori',
-  bgColor: 'Sfondo',
-  fgColor: 'Testo',
   textAria: 'Testo specimen',
   shapesAria: 'Forma',
   marginsAria: 'Margine',
@@ -158,7 +151,6 @@ const IT: Dict = {
   creditsBy: 'Design + Development:',
   creditsType: 'Composto in:',
   fontMissing: 'Font non trovato',
-  fontUnreadable: 'Font illeggibile',
   glyphMissing: 'Glifo non disponibile',
   typeHint: 'Scrivi…',
   points: 'punti',
@@ -168,9 +160,7 @@ const IT: Dict = {
   bootCmd: 'cd marcovaldo && npm run dev',
   bootOpen: 'Poi apri',
   params: {
-    growth: 'Crescita',
-    scale: 'Scala',
-    tracking: 'Tracking'
+    growth: 'Crescita'
   },
   shapes: SHAPE_IT,
   margins: MARGIN_IT,
@@ -183,9 +173,6 @@ const EN: Dict = {
   faceSerif: 'Serif',
   scale: 'Scale',
   tracking: 'Tracking',
-  colors: 'Colors',
-  bgColor: 'Background',
-  fgColor: 'Text',
   textAria: 'Specimen text',
   shapesAria: 'Shape',
   marginsAria: 'Margin',
@@ -205,7 +192,6 @@ const EN: Dict = {
   creditsBy: 'Design + Development:',
   creditsType: 'Typeset in:',
   fontMissing: 'Font not found',
-  fontUnreadable: 'Unreadable font',
   glyphMissing: 'Glyph unavailable',
   typeHint: 'Type…',
   points: 'points',
@@ -215,9 +201,7 @@ const EN: Dict = {
   bootCmd: 'cd marcovaldo && npm run dev',
   bootOpen: 'Then open',
   params: {
-    growth: 'Growth',
-    scale: 'Scale',
-    tracking: 'Tracking'
+    growth: 'Growth'
   },
   shapes: SHAPE_EN,
   margins: MARGIN_EN,

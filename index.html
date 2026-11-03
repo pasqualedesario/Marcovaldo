@@ -1,20 +1,20 @@
 <!doctype html>
-<html lang="it" data-face="sans">
+<html lang="it">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Marcovaldo (WIP)</title>
-  <meta name="description" content="Marcovaldo — WIP. Generatore tipografico a morfologia fogliare.">
-  <meta property="og:title" content="Marcovaldo (WIP)">
-  <meta property="og:description" content="Work in Progress — generatore tipografico a morfologia fogliare.">
+  <title>Marcovaldo</title>
+  <meta name="description" content="Marcovaldo — generatore tipografico a morfologia fogliare.">
+  <meta property="og:title" content="Marcovaldo">
+  <meta property="og:description" content="Generatore tipografico a morfologia fogliare.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="og.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Marcovaldo (WIP)">
-  <meta name="twitter:description" content="Work in Progress — generatore tipografico a morfologia fogliare.">
+  <meta name="twitter:title" content="Marcovaldo">
+  <meta name="twitter:description" content="Generatore tipografico a morfologia fogliare.">
   <meta name="twitter:image" content="og.png">
   <link rel="icon" type="image/png" sizes="192x192" href="favicon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -54,15 +54,14 @@
 </div>
 
 <div class="app">
-  <div class="brand-glass brand-sticky" id="brand" aria-hidden="true"></div>
+  <div class="brand-pill brand-sticky" id="brand" aria-hidden="true"></div>
 
   <div class="workspace" id="workspace">
     <div class="topbar">
       <div class="topbar-left">
-        <div class="face-switch" id="face-chip" role="group" aria-label="Carattere" data-face="sans">
-          <span class="face-switch-thumb" aria-hidden="true"></span>
-          <button type="button" class="face-opt" id="face-sans" data-face="sans" aria-pressed="true" data-i18n="faceSans">Sans</button>
-          <button type="button" class="face-opt" id="face-serif" data-face="serif" aria-pressed="false" data-i18n="faceSerif">Serif</button>
+        <div class="chips face-chips" id="face-chips" role="group" aria-label="Carattere">
+          <button type="button" class="chip" id="face-sans" data-face="sans" aria-pressed="true" data-i18n="faceSans">Sans</button>
+          <button type="button" class="chip" id="face-serif" data-face="serif" aria-pressed="false" data-i18n="faceSerif">Serif</button>
         </div>
       </div>
       <div class="topbar-center" aria-hidden="true"></div>
@@ -88,8 +87,13 @@
 
     <div class="dock" id="dock">
       <div class="dock-main">
-        <div class="dock-col dock-col-controls">
-          <div class="params" id="params"></div>
+        <div class="dock-col">
+          <div class="params" id="params">
+            <label class="field" data-param="growth" title="Crescita">
+              <span id="growth-label">Crescita</span> <span class="val" id="v-growth" aria-live="polite">70</span>
+              <input id="p-growth" class="ios" type="range" min="0" max="100" value="70" aria-label="Crescita">
+            </label>
+          </div>
           <div class="morph-group">
             <span class="morph-label" data-i18n="marginsAria">Margine</span>
             <div class="chips morph-chips" id="margins" role="group" aria-label="Margine"></div>
@@ -111,7 +115,7 @@
           <button class="chip" id="svg" type="button">↓ SVG</button>
           <button class="chip" id="pdf" type="button">↓ PDF</button>
           <span class="otf-anchor" id="otf-anchor">
-            <button class="brand-glass otf-btn" id="otf" type="button">↓ OTF</button>
+            <button class="chip otf-btn" id="otf" type="button">↓ OTF</button>
           </span>
         </div>
       </div>
@@ -124,7 +128,7 @@
 
   <footer class="site-credits">
     <span class="lang-land" id="lang-land">
-      <button class="brand-glass lang-btn" id="lang" type="button" aria-label="Language">English</button>
+      <button class="chip lang-btn" id="lang" type="button" aria-label="Language">English</button>
     </span>
     <div class="credits-body">
       <p class="credits-note">

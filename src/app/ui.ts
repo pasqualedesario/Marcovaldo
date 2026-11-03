@@ -23,8 +23,6 @@ import {
 import { getLang, setLang, t, toggleLang } from '../i18n';
 import type { AppState } from './state';
 import {
-  DEFAULT_BG,
-  DEFAULT_FG,
   applyMargin,
   applyShape,
   applyTheme,
@@ -39,7 +37,7 @@ import {
 import { createEngine, type Engine } from './engine';
 import { mountSpecimens } from './specimens';
 import { paintBrand } from './brand';
-import { mountFaceSwitch } from './faceSwitch';
+import { mountFaceChips } from './faceChips';
 import { mountLangPin, mountOtfPin } from './otfPin';
 
 function applyStaticI18n(): void {
@@ -57,11 +55,18 @@ function applyStaticI18n(): void {
   };
   bind('scale', d.scale);
   bind('tracking', d.tracking);
-  document.querySelector('.face-switch')?.setAttribute('aria-label', d.font);
+  document.getElementById('face-chips')?.setAttribute('aria-label', d.font);
   document.getElementById('text')?.setAttribute('aria-label', d.textAria);
   document.getElementById('shapes')?.setAttribute('aria-label', d.shapesAria);
   document.getElementById('margins')?.setAttribute('aria-label', d.marginsAria);
   document.querySelector('.specimen-section')?.setAttribute('aria-label', d.specimensAria);
+
+  const growthLabel = d.params.growth ?? 'Crescita';
+  const growthLabelEl = document.getElementById('growth-label');
+  if (growthLabelEl) growthLabelEl.textContent = growthLabel;
+  document.getElementById('p-growth')?.setAttribute('aria-label', growthLabel);
+  const growthField = document.querySelector<HTMLLabelElement>('label.field[data-param="growth"]');
+  if (growthField) growthField.title = growthLabel;
 
   for (const a of document.querySelectorAll<HTMLAnchorElement>('.credits-type .credits-link')) {
     a.href = TYPEFACES_URL;
@@ -90,7 +95,6 @@ function wireMorphUi(opts: {
   state: AppState;
   engine: Engine;
   stage: HTMLElement;
-  paramsEl: HTMLElement;
   shapesEl: HTMLElement;
   marginsEl: HTMLElement;
   scaleEl: HTMLInputElement;
@@ -99,7 +103,7 @@ function wireMorphUi(opts: {
   textEl: HTMLInputElement;
 }): MorphUi {
   const {
-    state, engine, stage, paramsEl, shapesEl, marginsEl, scaleEl, trackingEl, trackingValEl, textEl
+    state, engine, stage, shapesEl, marginsEl, scaleEl, trackingEl, trackingValEl, textEl
   } = opts;
 
   const syncTextField = () => {
@@ -143,49 +147,17 @@ function wireMorphUi(opts: {
     });
   };
 
-  const ensureGrowthParam = () => {
-    paramsEl.hidden = false;
-    let wrap = paramsEl.querySelector<HTMLLabelElement>('label.field[data-param="growth"]');
-    let input = document.getElementById('p-growth') as HTMLInputElement | null;
-    let val = document.getElementById('v-growth');
+  const growthEl = $input('p-growth');
+  const growthValEl = $('v-growth');
 
-    if (!wrap || !input || !val) {
-      paramsEl.replaceChildren();
-      wrap = document.createElement('label');
-      wrap.className = 'field';
-      wrap.dataset.param = 'growth';
-
-      val = document.createElement('span');
-      val.className = 'val';
-      val.id = 'v-growth';
-
-      input = document.createElement('input');
-      input.type = 'range';
-      input.className = 'ios';
-      input.id = 'p-growth';
-      input.min = '0';
-      input.max = '100';
-      input.addEventListener('input', () => {
-        state.growth = +input!.value;
-        setRangePct(input!, state.growth);
-        val!.textContent = String(state.growth);
-        engine.requestDraw();
-      });
-
-      wrap.append(document.createTextNode(''), val, input);
-      paramsEl.appendChild(wrap);
-    }
-
-    const labelText = t().params.growth ?? 'Crescita';
-    wrap.childNodes[0]!.textContent = `${labelText} `;
-    input.setAttribute('aria-label', labelText);
-    input.value = String(state.growth);
-    val.textContent = String(state.growth);
-    setRangePct(input, state.growth);
+  const syncGrowth = () => {
+    growthEl.value = String(state.growth);
+    growthValEl.textContent = String(state.growth);
+    setRangePct(growthEl, state.growth);
   };
 
   const syncSliders = () => {
-    ensureGrowthParam();
+    syncGrowth();
     scaleEl.value = String(state.scale);
     setRangePct(scaleEl, state.scale);
     trackingEl.value = String(state.tracking);
@@ -200,6 +172,12 @@ function wireMorphUi(opts: {
     engine.requestDraw();
   };
 
+  growthEl.addEventListener('input', () => {
+    state.growth = +growthEl.value;
+    setRangePct(growthEl, state.growth);
+    growthValEl.textContent = String(state.growth);
+    engine.requestDraw();
+  });
   scaleEl.addEventListener('input', () => {
     state.scale = +scaleEl.value;
     setRangePct(scaleEl, state.scale);
@@ -212,7 +190,7 @@ function wireMorphUi(opts: {
     engine.requestDraw();
   });
 
-  ensureGrowthParam();
+  syncGrowth();
   return { rebuildChips, syncSliders, refresh };
 }
 
@@ -309,15 +287,11 @@ function wireExports(opts: {
 
 export function mountApp(state: AppState): void {
   setLang(getLang());
-
-  state.bg = DEFAULT_BG;
-  state.color = DEFAULT_FG;
   applyTheme(state);
 
   const stage = $('stage');
   const textEl = $input('text');
   const caret = $('caret');
-  const paramsEl = $('params');
   const shapesEl = $('shapes');
   const marginsEl = $('margins');
   const scaleEl = $input('scale');
@@ -377,8 +351,7 @@ export function mountApp(state: AppState): void {
     }
   };
 
-  mountFaceSwitch({
-    chip: $('face-chip'),
+  mountFaceChips({
     buttons: FACE_IDS.map((id) => $(`face-${id}`) as HTMLButtonElement),
     getFace: () => state.face,
     onChange: (face) => {
@@ -390,7 +363,6 @@ export function mountApp(state: AppState): void {
     state,
     engine,
     stage,
-    paramsEl,
     shapesEl,
     marginsEl,
     scaleEl,
