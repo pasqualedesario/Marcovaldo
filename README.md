@@ -1,7 +1,5 @@
 # Marcovaldo
 
-**WIP — Work in Progress.**
-
-Experimental botanical type generator. APIs, UI, and exports may change without notice.
+WIP typo-botanical generator.
 
 License: [MIT](./LICENSE).
