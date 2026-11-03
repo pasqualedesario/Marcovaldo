@@ -1,6 +1,6 @@
 /**
  * Build public/og.svg + og.png (1200×630) and apple-touch-icon.png (512×512).
- * Run: npx vite-node scripts/gen-og.ts
+ * Run: npm run og
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
