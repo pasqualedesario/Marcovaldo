@@ -8,7 +8,7 @@ import {
 } from './catalog';
 
 const MODULE_ID = 'leaf-morphology';
-const MODULE_VERSION = '1.3.0';
+const MODULE_VERSION = '1.4.0';
 
 export function moduleStamp(): string {
   return `${MODULE_ID}@${MODULE_VERSION}`;
@@ -558,8 +558,8 @@ function stampFlora(
   const leanN = makeNoise1D(R, Math.max(5, Math.round(stamps.length / 10)));
   let alt = R() < 0.5 ? 1 : -1;
 
-  // Low growth → sparse buds; density eases in with grow².
-  const keepChance = 0.12 + grow * grow * 0.88;
+  // Visible from the first notch; denser as leaves cover the letter.
+  const keepChance = 0.55 + grow * 0.45;
 
   for (let i = 0; i < stamps.length; i++) {
     const s = stamps[i]!;
@@ -568,29 +568,30 @@ function stampFlora(
       alt *= -1;
       continue;
     }
-    const field = 0.5 + 0.55 * s.field;
-    const organic = 0.75 + 0.5 * R();
-    const pulse = 1 - 0.25 * (0.5 + 0.5 * Math.sin(i * 0.73 + grow));
-    if (s.field < 0.18 + (1 - grow) * 0.2 && R() < 0.35) {
+    const field = 0.55 + 0.5 * s.field;
+    const organic = 0.8 + 0.4 * R();
+    const pulse = 1 - 0.18 * (0.5 + 0.5 * Math.sin(i * 0.73 + grow));
+    if (s.field < 0.1 + (1 - grow) * 0.08 && R() < 0.15) {
       alt *= -1;
       continue;
     }
     const len = amp * field * organic * pulse;
-    if (len < amp * (0.14 - grow * 0.06)) {
+    if (len < amp * 0.08) {
       alt *= -1;
       continue;
     }
 
-    // From the skeleton, lean mostly along the stroke with a soft outward tip.
-    let gx = s.tx * 0.7 + s.nx * 0.3;
-    let gy = s.ty * 0.7 + s.ny * 0.3;
+    // Graft along the stroke; lean outward more as growth covers the letter.
+    const out = 0.35 + grow * 0.45;
+    let gx = s.tx * (1 - out) + s.nx * out;
+    let gy = s.ty * (1 - out) + s.ny * out;
     const gl = hypot(gx, gy);
     gx /= gl;
     gy /= gl;
 
-    const lean = (0.25 + grow * 0.35) * (0.6 + R() * 0.9) * alt + leanN(phase) * 0.35;
+    const lean = (0.2 + grow * 0.4) * (0.55 + R() * 0.9) * alt + leanN(phase) * 0.3;
     const dir = rotate2(gx, gy, lean);
-    const widthScale = 0.75 + R() * 0.45;
+    const widthScale = 0.7 + R() * 0.5;
 
     const leaves = buildLaminaStamp(shape, margin, s, len, widthScale, dir.x, dir.y, R);
     for (const leaf of leaves) lamina.push(leaf);
@@ -600,8 +601,8 @@ function stampFlora(
 }
 
 /**
- * Flora stamps along the glyph stroke skeleton (medial-axis approx).
- * Growth eases in from zero — amp and density both start near empty.
+ * Leaves graft onto the glyph and grow to cover it.
+ * Growth 1% already shows buds; higher values enlarge and densify.
  */
 export function applyMorphology(
   contours: Contours,
@@ -611,10 +612,10 @@ export function applyMorphology(
   spec: MorphologySpec
 ): Contours {
   const g = Math.min(1, Math.max(0, params.growth * 0.01));
-  if (g <= 1e-4) return contours.map((c) => c.slice());
+  if (g <= 0) return contours.map((c) => c.slice());
 
-  // Strong ease-in: slider 0→1% stays tiny buds, not a full canopy.
-  const grow = ss(0, 1, Math.pow(g, 1.65));
+  // Mild ease — first percent is already a real bud size.
+  const grow = ss(0, 1, Math.pow(g, 0.72));
   const shape = spec.shape;
   const margin = clampMargin(shape, spec.margin);
 
@@ -629,13 +630,21 @@ export function applyMorphology(
       : group === 'needle' ? 0.04
         : 0.06;
 
-  // Amp ∝ grow² at the start so the first notch is barely visible.
-  const amp = baseAmp * fontSize * (0.05 * grow + 1.2 * grow * grow);
-  const spacing = fontSize * Math.max(0.02, baseSpacing * (2.15 - grow * 0.95));
-  const skeletonInset = Math.max(spacing * 0.5, fontSize * 0.04 * (0.35 + grow * 0.65));
+  // Floor amp so g≈0.01 is visible; then scale up to cover the letter.
+  const amp = baseAmp * fontSize * (0.22 + grow * 1.15);
+  const spacing = fontSize * Math.max(0.018, baseSpacing * (1.85 - grow * 0.85));
+  // Low growth sits near the outline; high growth sinks into the stroke.
+  const skeletonInset = fontSize * (0.015 + grow * 0.07);
 
   const R = rng(seed);
   const lamina: Contours = [];
+
+  // Keep the letter under the leaves until they largely cover it.
+  if (grow < 0.92) {
+    for (const c of contours) {
+      if (c.length >= 3) lamina.push(c.slice());
+    }
+  }
 
   for (let i = 0; i < contours.length; i++) {
     const c = contours[i]!;
@@ -646,8 +655,8 @@ export function applyMorphology(
     insetRingToSkeleton(ring, contours, skeletonInset);
     seedField(ring, Rc);
     diffuseField(ring, 1 + Math.round(grow * 4), 0.28);
-    reactField(ring.field, 0.035 * grow);
-    if (grow > 0.35) diffuseField(ring, 2, 0.18);
+    reactField(ring.field, 0.04 + 0.04 * grow);
+    if (grow > 0.25) diffuseField(ring, 2, 0.18);
 
     const stamps = stampsFromRing(ring, spacing);
     const leaves = stampFlora(stamps, { amp, grow, shape, margin, R: Rc });
@@ -655,6 +664,54 @@ export function applyMorphology(
   }
 
   return lamina.length ? lamina : contours.map((c) => c.slice());
+}
+
+/** Deterministic unit-leaf SVG paths for shape chips (viewBox-ready). */
+export function leafShapeIcon(shape: LeafShape): { paths: string[]; viewBox: string } {
+  const margin = clampMargin(shape, 'entire');
+  const quiet = () => 0.37;
+  const group = shapeGroup(shape);
+  const steps = group === 'needle' ? 10 : group === 'compound' ? 12 : 14;
+  const contours: Contours = [];
+
+  if (group === 'compound') {
+    const layout = leafletLayout(shape);
+    for (const L of layout) {
+      const dir = rotate2(0, 1, L.ang);
+      let leaflet = unitLeaf('ovate', margin, steps, quiet, 0);
+      leaflet = transformUnit(leaflet, L.x, L.y, L.s, 0.9, dir.x, dir.y);
+      contours.push(leaflet);
+    }
+  } else {
+    contours.push(unitLeaf(shape, margin, steps, quiet, 0));
+  }
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const paths: string[] = [];
+  for (const c of contours) {
+    const parts: string[] = [];
+    for (let i = 0; i < c.length; i++) {
+      const p = c[i]!;
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+      parts.push(`${i === 0 ? 'M' : 'L'}${p.x.toFixed(4)} ${p.y.toFixed(4)}`);
+    }
+    parts.push('Z');
+    paths.push(parts.join(''));
+  }
+
+  const pad = 0.06;
+  const w = Math.max(0.08, maxX - minX) + pad * 2;
+  const h = Math.max(0.08, maxY - minY) + pad * 2;
+  return {
+    paths,
+    viewBox: `${(minX - pad).toFixed(4)} ${(minY - pad).toFixed(4)} ${w.toFixed(4)} ${h.toFixed(4)}`
+  };
 }
 
 export {

@@ -107,10 +107,25 @@ function morphDict(
 }
 
 const SHAPE_IT = morphDict(LEAF_SHAPES, {
-  odd_pinnate: 'Imparipennata',
-  trifoliate: 'Trifogliata',
+  acicular: 'Aciculare',
+  linear: 'Lineare',
+  lanceolate: 'Lanceolata',
+  elliptic: 'Ellittica',
+  ovate: 'Ovata',
+  obovate: 'Obovata',
+  orbicular: 'Orbicolare',
+  reniform: 'Reniforme',
+  cordate: 'Cordata',
+  deltoid: 'Deltoide',
+  hastate: 'Astata',
+  sagittate: 'Sagittata',
+  falcate: 'Falcata',
   flabellate: 'Flabellata',
   lobed: 'Lobata',
+  pinnatisect: 'Pinnatisetta',
+  palmatifid: 'Palmatifida',
+  trifoliate: 'Trifogliata',
+  odd_pinnate: 'Imparipennata',
   palmate: 'Palmata',
   bipinnate: 'Bipennata'
 });
@@ -121,6 +136,12 @@ const SHAPE_EN = morphDict(LEAF_SHAPES, {
 
 const MARGIN_IT = morphDict(LEAF_MARGINS, {
   entire: 'Intero',
+  ciliate: 'Ciliato',
+  crenate: 'Crenato',
+  dentate: 'Dentato',
+  serrate: 'Serrato',
+  sinuate: 'Sinuato',
+  undulate: 'Ondulato',
   spiny: 'Spinoso'
 });
 

@@ -206,7 +206,10 @@ canvas.raster{
 @keyframes caret-blink{50%{opacity:0}}
 
 .dock{
-  display:grid;gap:var(--chip-gap);align-content:start;
+  display:grid;
+  /* Double gap between morph chips row and growth/download row. */
+  gap:calc(var(--chip-gap) * 2);
+  align-content:start;
 }
 .dock-row{
   display:flex;
@@ -222,10 +225,40 @@ canvas.raster{
 .dock-actions{
   justify-content:space-between;
   align-items:flex-end;
+  gap:calc(var(--chip-gap) * 2);
 }
 .dock-exports{
   flex:none;
   margin-left:auto;
+  gap:var(--chip-gap);
+}
+/* Expanded morph menu: full viewport width; redistribute download spacing. */
+.dock.is-expanded{
+  width:100vw;
+  max-width:100vw;
+  margin-left:calc(50% - 50vw);
+  margin-right:calc(50% - 50vw);
+  padding-left:max(var(--pad), env(safe-area-inset-left, 0px));
+  padding-right:max(var(--pad), env(safe-area-inset-right, 0px));
+  box-sizing:border-box;
+}
+.dock.is-expanded .dock-morph,
+.dock.is-expanded .dock-actions{
+  width:100%;
+}
+.dock.is-expanded .dock-actions{
+  justify-content:space-between;
+  gap:clamp(12px, 3vw, 28px);
+}
+.dock.is-expanded .params{
+  max-width:min(360px, 42vw);
+  flex:1 1 auto;
+}
+.dock.is-expanded .dock-exports{
+  margin-left:0;
+  flex:0 1 auto;
+  justify-content:flex-end;
+  gap:clamp(8px, 1.6vw, 18px);
 }
 body.is-busy{cursor:progress}
 body.is-busy .otf-btn{opacity:.72;pointer-events:none}
@@ -253,8 +286,30 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
 .chip[aria-pressed=true],
 .chip-rect[aria-expanded=true]{background:var(--accent);color:var(--bg)}
 .chip-rect{
-  border-radius:10px;
+  border-radius:0;
   flex:none;
+}
+.chip-leaf{
+  width:calc(var(--chip-h) + 4px);
+  height:calc(var(--chip-h) + 8px);
+  min-height:calc(var(--chip-h) + 8px);
+  max-height:none;
+  padding:2px;
+  border-radius:0;
+  background:transparent;
+  color:var(--chip);
+}
+.chip-leaf svg{
+  display:block;
+  width:100%;
+  height:100%;
+  overflow:visible;
+}
+.chip-leaf path{fill:currentColor}
+.chip-leaf[aria-pressed=true],
+.chip-leaf:hover{
+  background:transparent;
+  color:var(--accent);
 }
 .specimen-chip{
   pointer-events:none;
@@ -275,6 +330,11 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
 .morph-chips:not([hidden]){
   display:flex;
 }
+.dock.is-expanded .morph-chips:not([hidden]){
+  flex:1 1 100%;
+  width:100%;
+  max-width:100%;
+}
 
 @media (hover:hover){
   .chip:hover,
@@ -282,6 +342,11 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
   .chip-rect[aria-expanded=true]:hover{
     background:var(--accent);
     color:var(--bg);
+  }
+  .chip-leaf:hover,
+  .chip-leaf[aria-pressed=true]:hover{
+    background:transparent;
+    color:var(--accent);
   }
   .credits-link:hover{color:var(--accent)}
   input[type=range].ios:hover::-webkit-slider-thumb,

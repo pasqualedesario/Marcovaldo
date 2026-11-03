@@ -1,5 +1,6 @@
 import {
   LEAF_SHAPES,
+  leafShapeIcon,
   marginsFor,
   type LeafMargin,
   type LeafShape
@@ -127,6 +128,8 @@ function wireMorphUi(opts: {
     textEl.value = state.text;
   };
 
+  const dockEl = document.getElementById('dock');
+
   const setPanel = (panel: MorphPanel) => {
     openPanel = panel;
     const marginsOpen = panel === 'margins';
@@ -135,14 +138,26 @@ function wireMorphUi(opts: {
     shapesEl.hidden = !shapesOpen;
     marginsToggle.setAttribute('aria-expanded', marginsOpen ? 'true' : 'false');
     shapesToggle.setAttribute('aria-expanded', shapesOpen ? 'true' : 'false');
+    dockEl?.classList.toggle('is-expanded', panel !== null);
   };
 
-  const fillChips = <T extends string>(
+  const bindChipClick = (b: HTMLButtonElement, onPick: () => void) => {
+    b.addEventListener('click', () => {
+      onPick();
+      stage.classList.add('is-morphing');
+      window.setTimeout(() => {
+        refresh();
+        stage.classList.remove('is-morphing');
+      }, 160);
+    });
+  };
+
+  const fillMarginChips = (
     el: HTMLElement,
-    ids: readonly T[],
+    ids: readonly LeafMargin[],
     labels: Record<string, string>,
-    current: T,
-    onPick: (id: T) => void
+    current: LeafMargin,
+    onPick: (id: LeafMargin) => void
   ) => {
     el.replaceChildren();
     for (const id of ids) {
@@ -152,25 +167,49 @@ function wireMorphUi(opts: {
       b.textContent = labels[id] ?? id;
       b.dataset.id = id;
       b.setAttribute('aria-pressed', id === current ? 'true' : 'false');
-      b.addEventListener('click', () => {
-        onPick(id);
-        stage.classList.add('is-morphing');
-        window.setTimeout(() => {
-          refresh();
-          stage.classList.remove('is-morphing');
-        }, 160);
-      });
+      bindChipClick(b, () => onPick(id));
+      el.appendChild(b);
+    }
+  };
+
+  const fillShapeChips = (
+    el: HTMLElement,
+    labels: Record<string, string>,
+    current: LeafShape,
+    onPick: (id: LeafShape) => void
+  ) => {
+    el.replaceChildren();
+    for (const id of LEAF_SHAPES) {
+      const label = labels[id] ?? id;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip chip-leaf';
+      b.dataset.id = id;
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.setAttribute('aria-pressed', id === current ? 'true' : 'false');
+      const icon = leafShapeIcon(id);
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', icon.viewBox);
+      svg.setAttribute('aria-hidden', 'true');
+      for (const d of icon.paths) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        svg.append(path);
+      }
+      b.append(svg);
+      bindChipClick(b, () => onPick(id));
       el.appendChild(b);
     }
   };
 
   const rebuildChips = () => {
     const d = t();
-    fillChips(shapesEl, LEAF_SHAPES, d.shapes, state.shape, (id) => {
+    fillShapeChips(shapesEl, d.shapes, state.shape, (id) => {
       applyShape(state, id, d.shapes[id]);
     });
-    fillChips(marginsEl, marginsFor(state.shape), d.margins, state.margin, (id) => {
-      applyMargin(state, id as LeafMargin);
+    fillMarginChips(marginsEl, marginsFor(state.shape), d.margins, state.margin, (id) => {
+      applyMargin(state, id);
     });
   };
 

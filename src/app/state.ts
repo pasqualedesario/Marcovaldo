@@ -18,7 +18,7 @@ import {
   applyPaletteVars
 } from '../lib/palette';
 import { DEFAULT_FACE, type FaceId } from '../lib/typefaces';
-import { allMorphLabels } from '../i18n';
+import { allMorphLabels, t } from '../i18n';
 
 const randInt = (a: number, b: number) => Math.floor(a + Math.random() * (b - a + 1));
 const clampPct = (n: number) => clamp(n, 0, 100);
@@ -77,7 +77,7 @@ export function createState(): AppState {
     font: null,
     uiFont: null,
     face: DEFAULT_FACE,
-    text: shapeBaseText(DEFAULT_SHAPE),
+    text: shapeBaseText(DEFAULT_SHAPE, t().shapes[DEFAULT_SHAPE]),
     bg: DEFAULT_BG,
     color: DEFAULT_FG,
     offset: 0,
