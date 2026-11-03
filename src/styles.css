@@ -207,8 +207,8 @@ button,input{font:inherit;color:inherit}
   opacity:.55;
 }
 .face-chip .face-opt.is-on{
-  background:var(--ink);
-  color:var(--chip);
+  background:var(--accent);
+  color:var(--bg);
   opacity:1;
 }
 @media (hover:hover){
@@ -288,7 +288,7 @@ body.is-busy .otf-btn{opacity:.72;pointer-events:none}
   transition:background .15s,color .15s,opacity .15s;
   white-space:nowrap;
 }
-.chip[aria-pressed=true]{background:var(--pressed);color:var(--fg)}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--bg)}
 
 @media (hover:hover){
   .chip:hover,
@@ -352,7 +352,7 @@ input[type=range].ios:focus{outline:none}
 input[type=range].ios:focus-visible{outline:3px solid var(--accent);outline-offset:4px;border-radius:8px}
 input[type=range].ios::-webkit-slider-runnable-track{
   height:3px;border-radius:999px;
-  background:linear-gradient(var(--fg),var(--fg)) 0/var(--pct) 100% no-repeat,var(--track);
+  background:linear-gradient(var(--accent),var(--accent)) 0/var(--pct) 100% no-repeat,var(--track);
 }
 input[type=range].ios::-webkit-slider-thumb{
   -webkit-appearance:none;appearance:none;
@@ -365,7 +365,7 @@ input[type=range].ios::-moz-range-track{
   height:3px;border-radius:999px;background:var(--track);border:0;
 }
 input[type=range].ios::-moz-range-progress{
-  height:3px;border-radius:999px;background:var(--fg);border:0;
+  height:3px;border-radius:999px;background:var(--accent);border:0;
 }
 input[type=range].ios::-moz-range-thumb{
   width:14px;height:14px;border-radius:50%;
