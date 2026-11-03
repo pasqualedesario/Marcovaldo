@@ -22,15 +22,15 @@ export type SpecimenInput = {
 };
 
 const MIN_SIZE_PT = 5;
-const MAX_SIZE_FRAC = 0.52;
+/** Absolute ceiling — may overflow the stage (clipped by viewport). */
+const MAX_SIZE_PT = 500;
 const FLATTEN_STEPS = 8;
 const SPECIMEN_LEADING = 1.1;
 const OPEN_QUALITY_PX = 96;
 
-export function specimenFontSize(width: number, height: number, scale: number): number {
-  const minSide = Math.min(width, height);
+export function specimenFontSize(_width: number, _height: number, scale: number): number {
   const minPx = MIN_SIZE_PT * PT_TO_PX;
-  const maxPx = Math.max(minPx, minSide * MAX_SIZE_FRAC);
+  const maxPx = MAX_SIZE_PT * PT_TO_PX;
   const t = Math.min(100, Math.max(0, scale)) / 100;
   return minPx + (maxPx - minPx) * t;
 }

@@ -5,6 +5,7 @@ import type { SelOverlay } from '../preview/selection';
 import { canvasToPngBlob, renderCanvas } from '../preview/raster';
 import { createFrameScheduler } from '../lib/schedule';
 import { clamp, nearestStopIndex, selectionBounds } from '../lib/math';
+import { COLOR_ACCENT } from '../lib/palette';
 import { t } from '../i18n';
 import type { AppState } from './state';
 import { morphSpec, paramsSnapshot, specimenText } from './state';
@@ -54,7 +55,7 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
       y: caretBand.y,
       w: box.w,
       h: caretBand.h,
-      fill: state.color,
+      fill: COLOR_ACCENT,
       ink: state.bg
     };
   };

@@ -59,11 +59,11 @@
   <div class="workspace" id="workspace">
     <div class="topbar">
       <div class="topbar-left">
-        <div class="chip face-chip" id="face-chip" role="group" aria-label="Carattere">
+        <div class="face-switch" id="face-chip" role="group" aria-label="Carattere" data-face="sans">
+          <span class="face-switch-thumb" aria-hidden="true"></span>
           <button type="button" class="face-opt" id="face-sans" data-face="sans" aria-pressed="true" data-i18n="faceSans">Sans</button>
           <button type="button" class="face-opt" id="face-serif" data-face="serif" aria-pressed="false" data-i18n="faceSerif">Serif</button>
         </div>
-        <span class="font-name" id="fontname">FOSS Modern</span>
       </div>
       <div class="topbar-center" aria-hidden="true"></div>
       <div class="topbar-right">
@@ -87,10 +87,20 @@
     </div>
 
     <div class="dock" id="dock">
-      <div class="params" id="params"></div>
-      <div class="morph-groups">
-        <div class="chips morph-chips" id="shapes" role="group" aria-label="Forma"></div>
-        <div class="chips morph-chips" id="margins" role="group" aria-label="Margine"></div>
+      <div class="dock-main">
+        <div class="dock-col dock-col-controls">
+          <div class="params" id="params"></div>
+          <div class="morph-group">
+            <span class="morph-label" data-i18n="marginsAria">Margine</span>
+            <div class="chips morph-chips" id="margins" role="group" aria-label="Margine"></div>
+          </div>
+        </div>
+        <div class="dock-col dock-col-shapes">
+          <div class="morph-group">
+            <span class="morph-label" data-i18n="shapesAria">Forma</span>
+            <div class="chips morph-chips" id="shapes" role="group" aria-label="Forma"></div>
+          </div>
+        </div>
       </div>
       <div class="toolbar">
         <div class="toolbar-left">

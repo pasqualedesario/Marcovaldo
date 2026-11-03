@@ -57,7 +57,7 @@ function applyStaticI18n(): void {
   };
   bind('scale', d.scale);
   bind('tracking', d.tracking);
-  document.querySelector('.face-chip')?.setAttribute('aria-label', d.font);
+  document.querySelector('.face-switch')?.setAttribute('aria-label', d.font);
   document.getElementById('text')?.setAttribute('aria-label', d.textAria);
   document.getElementById('shapes')?.setAttribute('aria-label', d.shapesAria);
   document.getElementById('margins')?.setAttribute('aria-label', d.marginsAria);
@@ -225,7 +225,7 @@ function wireTextStage(opts: {
   const { state, engine, textEl, caret } = opts;
 
   bindTextEdit(textEl, {
-    indexAtClientX: (x) => engine.indexAtX(x),
+    indexAtPointer: (x) => engine.indexAtX(x),
     onSelection: () => {
       engine.setSelection(textEl.selectionStart ?? 0, textEl.selectionEnd ?? 0);
     },
@@ -243,9 +243,9 @@ function wireTextStage(opts: {
 function wireExports(opts: {
   state: AppState;
   engine: Engine;
-  fontNameEl: HTMLElement;
 }): void {
-  const { state, engine, fontNameEl } = opts;
+  const { state, engine } = opts;
+  const statusEl = $('stage-status');
 
   $('png').addEventListener('click', () => {
     void engine.rasterizeBlob().then((blob) => {
@@ -275,7 +275,8 @@ function wireExports(opts: {
   });
   $('otf').addEventListener('click', () => {
     if (!state.font) {
-      fontNameEl.textContent = t().fontMissing;
+      statusEl.hidden = false;
+      statusEl.textContent = t().fontMissing;
       return;
     }
     const btn = $('otf');
@@ -316,7 +317,6 @@ export function mountApp(state: AppState): void {
   const stage = $('stage');
   const textEl = $input('text');
   const caret = $('caret');
-  const fontNameEl = $('fontname');
   const paramsEl = $('params');
   const shapesEl = $('shapes');
   const marginsEl = $('margins');
@@ -325,6 +325,7 @@ export function mountApp(state: AppState): void {
   const trackingValEl = $('trackingval');
   const sizePtEl = $('sizept');
   const brandEl = $('brand');
+  const statusEl = $('stage-status');
   textEl.value = state.text;
 
   const specimens = mountSpecimens($('specimens'), state);
@@ -337,7 +338,7 @@ export function mountApp(state: AppState): void {
     raster: $canvas('raster'),
     caret,
     stats: $('stats'),
-    status: $('stage-status'),
+    status: statusEl,
     statusMessage: (kind) => {
       if (kind === 'missing-font') return t().fontMissing;
       if (kind === 'missing-glyph') return t().glyphMissing;
@@ -355,12 +356,8 @@ export function mountApp(state: AppState): void {
   });
 
   const faceCache = new Map<FaceId, LoadedFont>();
-  const setFaceLabel = (id: FaceId) => {
-    fontNameEl.textContent = faceDef(id).label;
-  };
   const applyFace = async (id: FaceId, redraw = true) => {
     state.face = id;
-    setFaceLabel(id);
     try {
       let font = faceCache.get(id);
       if (!font) {
@@ -374,7 +371,8 @@ export function mountApp(state: AppState): void {
       if (redraw) engine.drawNow();
     } catch {
       state.font = null;
-      fontNameEl.textContent = t().fontMissing;
+      statusEl.hidden = false;
+      statusEl.textContent = t().fontMissing;
       if (redraw) engine.drawNow();
     }
   };
@@ -422,7 +420,7 @@ export function mountApp(state: AppState): void {
 
   applyLang();
   wireTextStage({ state, engine, textEl, caret });
-  wireExports({ state, engine, fontNameEl });
+  wireExports({ state, engine });
 
   $('reshuffle').addEventListener('click', () => {
     reshuffleAll(state, (shape: LeafShape) => t().shapes[shape] ?? shapeBaseText(shape));
@@ -438,7 +436,6 @@ export function mountApp(state: AppState): void {
   mountLangPin($('lang'), $('lang-land'));
 
   morphUi.syncSliders();
-  setFaceLabel(state.face || DEFAULT_FACE);
   paintBrand(brandEl, state);
   focusEnd();
 

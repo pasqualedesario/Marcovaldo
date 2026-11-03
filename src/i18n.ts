@@ -7,7 +7,8 @@ export type Lang = 'it' | 'en';
 
 export type SpecimenBlock = {
   sizePt: number;
-  lines: string[];
+  /** Unique specimen text; use `\n` for soft line breaks. */
+  text: string;
 };
 
 export type Dict = {
@@ -56,51 +57,43 @@ export type Dict = {
 const MARCOVALDO_SPECIMENS: ReadonlyArray<SpecimenBlock> = [
   {
     sizePt: 112,
-    lines: ['funghi,', 'veri funghi']
+    text: 'funghi,\nveri funghi'
   },
   {
     sizePt: 56,
-    lines: [
-      'Il vento, venendo in città',
-      'da lontano, le porta',
-      'doni inconsueti.'
-    ]
+    text: 'Il vento, venendo in città\nda lontano, le porta\ndoni inconsueti.'
   },
   {
     sizePt: 26,
-    lines: [
-      'Il vento, venendo in città da lontano, le porta doni inconsueti,',
-      'di cui s’accorgono solo poche anime sensibili,',
-      'come i raffreddati del fieno,',
+    text:
+      'Il vento, venendo in città da lontano, le porta doni inconsueti,\n' +
+      'di cui s’accorgono solo poche anime sensibili,\n' +
+      'come i raffreddati del fieno,\n' +
       'che starnutano per pollini di fiori d’altre terre.'
-    ]
   },
   {
     sizePt: 24,
-    lines: [
-      'Aveva questo Marcovaldo un occhio poco adatto alla vita di città:',
-      'cartelli, semafori, vetrine, insegne luminose, manifesti,',
-      'per studiati che fossero a colpire l’attenzione,',
-      'mai fermavano il suo sguardo',
+    text:
+      'Aveva questo Marcovaldo un occhio poco adatto alla vita di città:\n' +
+      'cartelli, semafori, vetrine, insegne luminose, manifesti,\n' +
+      'per studiati che fossero a colpire l’attenzione,\n' +
+      'mai fermavano il suo sguardo\n' +
       'che pareva scorrere sulle sabbie del deserto.'
-    ]
   },
   {
     sizePt: 12,
-    lines: [
-      'Marcovaldo tornò a casa; la moglie gli diede il resto della paga settimanale',
-      'perché andasse a fare la spesa. Gli raccomandò: «Guarda che i prezzi',
+    text:
+      'Marcovaldo tornò a casa; la moglie gli diede il resto della paga settimanale\n' +
+      'perché andasse a fare la spesa. Gli raccomandò: «Guarda che i prezzi\n' +
       'sono aumentati; non spendere più del dovuto!»'
-    ]
   },
   {
     sizePt: 8,
-    lines: [
-      'La città di Marcovaldo era cinta di avvelenate croste: i muri delle case,',
-      'le lastre dei marciapiedi, i tubi delle grondaie e dei tram, le sbarre',
-      'e le ringhiere. Tra queste croste, a intervalli, spuntavano le piante,',
+    text:
+      'La città di Marcovaldo era cinta di avvelenate croste: i muri delle case,\n' +
+      'le lastre dei marciapiedi, i tubi delle grondaie e dei tram, le sbarre\n' +
+      'e le ringhiere. Tra queste croste, a intervalli, spuntavano le piante,\n' +
       'non diverse, eppure diverse: polle di un’altra storia.'
-    ]
   }
 ];
 
