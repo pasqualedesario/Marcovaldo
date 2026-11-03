@@ -1,0 +1,43 @@
+name: Bug report
+description: Something isn’t working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Marcovaldo. Please fill in the sections below.
+  - type: textarea
+    id: describe
+    attributes:
+      label: What happened?
+      description: Clear description of the bug.
+      placeholder: When I…, the app…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps if possible.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser / OS
+      placeholder: e.g. Safari 18 / macOS 15
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Screenshots, console errors, font used, etc.

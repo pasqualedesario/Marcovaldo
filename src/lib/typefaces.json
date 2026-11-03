@@ -1,0 +1,22 @@
+{
+  "url": "https://www.foss-projects.com/typefaces",
+  "defaultFace": "sans",
+  "faces": {
+    "sans": {
+      "id": "sans",
+      "label": "FOSS Modern",
+      "family": "FOSS Modern",
+      "file": "fonts/FOSS-Modern/FOSS-Modern-Bold.otf",
+      "woff2": "fonts/FOSS-Modern/FOSS-Modern-Bold.woff2",
+      "weight": 700
+    },
+    "serif": {
+      "id": "serif",
+      "label": "FOSS Serif",
+      "family": "FOSS Serif",
+      "file": "fonts/FOSS-Serif/FOSSSERIF-Regular.otf",
+      "woff2": "fonts/FOSS-Serif/FOSSSERIF-Regular.woff2",
+      "weight": 400
+    }
+  }
+}

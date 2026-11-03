@@ -1,0 +1,35 @@
+# Dependencies & build
+node_modules/
+dist/
+
+# Local / env
+*.local
+.env
+.env.*
+
+# Logs & caches
+*.log
+npm-debug.log*
+.vite/
+.turbo/
+.cache/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# TypeScript
+*.tsbuildinfo
