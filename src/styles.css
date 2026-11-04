@@ -735,52 +735,57 @@ body.about-open{
     max-width:100%;
   }
 
-  /* Crescita on its row; Download tray full-width below (no sticky pin on mobile). */
+  /* Same row: crescita left, download right — export tray stacks above Download. */
   .dock-actions{
     flex-direction:row;
-    flex-wrap:wrap;
-    align-items:center;
+    flex-wrap:nowrap;
+    align-items:flex-end;
     justify-content:space-between;
     gap:var(--pad);
   }
   .params{
     flex:1 1 auto;
     width:auto;
-    max-width:100%;
+    max-width:min(280px, calc(100% - 5.5rem));
     min-width:0;
   }
   .dock-exports{
-    flex:1 1 100%;
-    width:100%;
-    margin-left:0;
+    margin-left:auto;
+    width:auto;
+    flex:none;
     justify-content:flex-end;
+    align-self:flex-end;
   }
   .download-cluster,
   .download-cluster.is-fixed{
     position:static;
     display:flex;
-    flex-wrap:wrap;
+    flex-direction:column;
+    flex-wrap:nowrap;
+    align-items:stretch;
     justify-content:flex-end;
-    align-items:center;
     gap:var(--gap);
-    width:100%;
-    max-width:100%;
+    width:auto;
+    min-width:5.5rem;
   }
-  .download-btn{order:1}
+  .download-btn{
+    width:100%;
+  }
   .export-chips:not([hidden]){
     display:flex;
-    flex:1 1 100%;
+    flex-direction:column;
+    flex:none;
     width:100%;
-    max-width:100%;
-    justify-content:flex-end;
-    flex-wrap:wrap;
-    order:0;
+    max-width:none;
+    align-items:stretch;
+    gap:var(--gap);
   }
   .export-chips:not([hidden]) .chip{
     flex:none;
+    width:100%;
+    justify-content:center;
   }
   .site-credits .download-land{
-    /* Slot only — cluster stays in the dock on mobile. */
     min-height:0;
   }
 
