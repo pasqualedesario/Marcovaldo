@@ -26,7 +26,11 @@ export function renderCanvas(
   ctx.fillRect(0, 0, opts.width, opts.height);
   if (opts.lamina.length) {
     ctx.fillStyle = opts.fill;
-    ctx.fill(contoursToPath2D(opts.lamina), 'nonzero');
+    // Fill each contour separately so overlapping flora cannot punch holes.
+    for (const c of opts.lamina) {
+      if (c.length < 3) continue;
+      ctx.fill(contoursToPath2D([c]), 'nonzero');
+    }
   }
   return ctx;
 }

@@ -48,10 +48,7 @@ const BASE_TEXTS: ReadonlySet<string> = new Set([
 ]);
 
 export function morphSpec(state: AppState): MorphologySpec {
-  return {
-    shape: state.shape,
-    margin: state.margin
-  };
+  return { shape: state.shape, margin: state.margin };
 }
 
 export function shapeBaseText(shape: LeafShape, label?: string): string {

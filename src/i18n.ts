@@ -21,12 +21,22 @@ export type Dict = {
   shapesAria: string;
   marginsAria: string;
   reshuffle: string;
+  download: string;
+  downloadAria: string;
   png: string;
   svg: string;
   pdf: string;
   otf: string;
   otfBusy: string;
+  otfStatic: string;
+  otfStaticBusy: string;
+  growthPlay: string;
+  growthPause: string;
   specimensAria: string;
+  about: string;
+  aboutGenerator: string;
+  aboutLead: string;
+  brandHome: string;
   creditsFrom: string;
   creditsAuthor: string;
   creditsTitle: string;
@@ -50,46 +60,60 @@ export type Dict = {
   specimens: ReadonlyArray<SpecimenBlock>;
 };
 
+/**
+ * Specimen excerpts from Calvino’s Marcovaldo — ASCII-safe for FOSS Modern ∩ FOSS Serif
+ * (no accented letters; both faces lack Latin diacritics in the subsetted files).
+ */
 const MARCOVALDO_SPECIMENS: ReadonlyArray<SpecimenBlock> = [
   {
     sizePt: 112,
-    text: 'funghi,\nveri funghi'
+    text: 'La neve!'
   },
   {
     sizePt: 56,
-    text: 'Il vento, venendo in città\nda lontano, le porta\ndoni inconsueti.'
+    text: 'Il freddo ha mille forme\ne mille modi di muoversi\nnel mondo.'
   },
   {
     sizePt: 26,
     text:
-      'Il vento, venendo in città da lontano, le porta doni inconsueti,\n' +
-      'di cui s’accorgono solo poche anime sensibili,\n' +
-      'come i raffreddati del fieno,\n' +
-      'che starnutano per pollini di fiori d’altre terre.'
+      'Gli itinerari che gli uccelli seguono migrando,\n' +
+      'verso sud o verso nord, d\'autunno o a primavera,\n' +
+      'traversano di rado la citta.\n' +
+      'Gli stormi tagliano il cielo alti sopra i campi.'
   },
   {
     sizePt: 24,
     text:
-      'Aveva questo Marcovaldo un occhio poco adatto alla vita di città:\n' +
-      'cartelli, semafori, vetrine, insegne luminose, manifesti,\n' +
-      'per studiati che fossero a colpire l’attenzione,\n' +
-      'mai fermavano il suo sguardo\n' +
-      'che pareva scorrere sulle sabbie del deserto.'
+      'Quel mattino lo sveglio il silenzio.\n' +
+      'Marcovaldo si tiro su dal letto\n' +
+      'col senso di qualcosa di strano nell\'aria.\n' +
+      'Aperse la finestra: la citta non c\'era piu,\n' +
+      'era stata sostituita da un foglio bianco.'
   },
   {
     sizePt: 12,
     text:
-      'Marcovaldo tornò a casa; la moglie gli diede il resto della paga settimanale\n' +
-      'perché andasse a fare la spesa. Gli raccomandò: «Guarda che i prezzi\n' +
-      'sono aumentati; non spendere più del dovuto!»'
+      'I rumori della citta che le notti d\'estate entrano dalle finestre aperte\n' +
+      'nelle stanze di chi non puo dormire per il caldo, i rumori veri della citta\n' +
+      'notturna, si fanno udire quando a una cert\'ora l\'anonimo frastuono dei\n' +
+      'motori dirada e tace, e dal silenzio vengon fuori discreti, nitidi, graduati\n' +
+      'secondo la distanza, un passo di nottambulo, il fruscio della bici d\'una\n' +
+      'guardia notturna, uno smorzato lontano schiamazzo.'
   },
   {
     sizePt: 8,
     text:
-      'La città di Marcovaldo era cinta di avvelenate croste: i muri delle case,\n' +
-      'le lastre dei marciapiedi, i tubi delle grondaie e dei tram, le sbarre\n' +
-      'e le ringhiere. Tra queste croste, a intervalli, spuntavano le piante,\n' +
-      'non diverse, eppure diverse: polle di un’altra storia.'
+      'Per chi ha in uggia la casa inospitale, il rifugio preferito nelle serate fredde\n' +
+      'e sempre il cinema. La passione di Marcovaldo erano i film a colori, sullo\n' +
+      'schermo grande che permette d\'abbracciare i piu vasti orizzonti: praterie,\n' +
+      'montagne rocciose, foreste equatoriali, isole dove si vive coronati di fiori.\n' +
+      'Vedeva il film due volte, usciva solo quando il cinema chiudeva; e col\n' +
+      'pensiero continuava ad abitare quei paesaggi e a respirare quei colori.\n' +
+      'Ma il rincasare nella sera piovigginosa, l\'aspettare alla fermata il tram\n' +
+      'numero 30, il constatare che la sua vita non avrebbe conosciuto altro\n' +
+      'scenario che tram, semafori, locali al seminterrato, fornelli a gas, roba\n' +
+      'stesa, magazzini e reparti d\'imballaggio, gli facevano svanire lo splendore\n' +
+      'del film in una tristezza sbiadita e grigia.'
   }
 ];
 
@@ -125,14 +149,10 @@ const SHAPE_IT = morphDict(LEAF_SHAPES, {
   pinnatisect: 'Pinnatisetta',
   palmatifid: 'Palmatifida',
   trifoliate: 'Trifogliata',
-  odd_pinnate: 'Imparipennata',
-  palmate: 'Palmata',
-  bipinnate: 'Bipennata'
+  palmate: 'Palmata'
 });
 
-const SHAPE_EN = morphDict(LEAF_SHAPES, {
-  odd_pinnate: 'Odd-pinnate'
-});
+const SHAPE_EN = morphDict(LEAF_SHAPES);
 
 const MARGIN_IT = morphDict(LEAF_MARGINS, {
   entire: 'Intero',
@@ -157,12 +177,22 @@ const IT: Dict = {
   shapesAria: 'Forma',
   marginsAria: 'Margine',
   reshuffle: 'Random',
-  png: '↓ PNG',
-  svg: '↓ SVG',
-  pdf: '↓ PDF',
-  otf: '↓ OTF',
-  otfBusy: 'OTF…',
+  download: 'Download',
+  downloadAria: 'Download',
+  png: 'PNG',
+  svg: 'SVG',
+  pdf: 'PDF',
+  otf: 'VF',
+  otfBusy: 'VF…',
+  otfStatic: 'OTF',
+  otfStaticBusy: 'OTF…',
+  growthPlay: 'Play crescita',
+  growthPause: 'Pausa crescita',
   specimensAria: 'Specimen tipografici',
+  about: 'About',
+  aboutGenerator: 'Generatore',
+  aboutLead: 'Marcovaldo is a WIP generative botanical type concept',
+  brandHome: 'Torna al generatore',
   creditsFrom: 'Estratti da:',
   creditsAuthor: 'Calvino, I. (1963).',
   creditsTitle: 'Marcovaldo ovvero Le stagioni in città',
@@ -198,12 +228,22 @@ const EN: Dict = {
   shapesAria: 'Shape',
   marginsAria: 'Margin',
   reshuffle: 'Random',
-  png: '↓ PNG',
-  svg: '↓ SVG',
-  pdf: '↓ PDF',
-  otf: '↓ OTF',
-  otfBusy: 'OTF…',
+  download: 'Download',
+  downloadAria: 'Download',
+  png: 'PNG',
+  svg: 'SVG',
+  pdf: 'PDF',
+  otf: 'VF',
+  otfBusy: 'VF…',
+  otfStatic: 'OTF',
+  otfStaticBusy: 'OTF…',
+  growthPlay: 'Play growth',
+  growthPause: 'Pause growth',
   specimensAria: 'Type specimens',
+  about: 'About',
+  aboutGenerator: 'Generator',
+  aboutLead: 'Marcovaldo is a WIP generative botanical type concept',
+  brandHome: 'Back to generator',
   creditsFrom: 'Excerpts from:',
   creditsAuthor: 'Calvino, I. (1963).',
   creditsTitle: 'Marcovaldo, or The Seasons in the City',

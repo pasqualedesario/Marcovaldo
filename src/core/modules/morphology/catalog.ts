@@ -19,9 +19,7 @@ export const LEAF_SHAPES = [
   'pinnatisect',
   'palmatifid',
   'trifoliate',
-  'odd_pinnate',
-  'palmate',
-  'bipinnate'
+  'palmate'
 ] as const;
 
 export type LeafShape = (typeof LEAF_SHAPES)[number];
@@ -68,9 +66,7 @@ const SHAPE_GROUP: Readonly<Record<LeafShape, ShapeGroup>> = {
   pinnatisect: 'lobed',
   palmatifid: 'lobed',
   trifoliate: 'compound',
-  odd_pinnate: 'compound',
-  palmate: 'compound',
-  bipinnate: 'compound'
+  palmate: 'compound'
 };
 
 const MARGINS_BY_GROUP: Readonly<Record<ShapeGroup, readonly LeafMargin[]>> = {
@@ -91,8 +87,6 @@ const MARGIN_SHAPE_DENY: Partial<Record<LeafShape, ReadonlySet<LeafMargin>>> = {
   pinnatisect: new Set(['spiny']),
   palmatifid: new Set(['spiny']),
   trifoliate: new Set(['spiny']),
-  odd_pinnate: new Set(['spiny']),
-  bipinnate: new Set(['spiny']),
   palmate: new Set(['spiny'])
 };
 

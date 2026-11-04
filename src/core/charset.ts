@@ -1,15 +1,15 @@
 /**
- * Foundry Latin charset for Marcovaldo OTF export.
- * Same characters as the base face, deformed with site params (static instance, no VF).
+ * Safe export charset — basic Latin present in FOSS Modern ∩ FOSS Serif.
+ * (Accented slots in older OTF_CHARSET produced empty/broken glyphs.)
  */
-export const OTF_CHARSET =
+export const VF_CHARSET =
   ' ABCDEFGHIJKLMNOPQRSTUVWXYZ' +
   'abcdefghijklmnopqrstuvwxyz' +
   '0123456789' +
-  '.,;:!?’\'"()[]{}<>/\\|-_@#%&*+=°' +
-  '«»‹›–—…·•€$£¥' +
-  'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞß' +
-  'àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ';
+  '.,;:!?\'"-';
+
+/** @deprecated use VF_CHARSET */
+export const OTF_CHARSET = VF_CHARSET;
 
 export function charsetChars(source = OTF_CHARSET): string[] {
   const out: string[] = [];

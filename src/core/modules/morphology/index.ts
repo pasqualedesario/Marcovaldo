@@ -1,14 +1,22 @@
+/**
+ * Marcovaldo morphology 3.0 — Primavera-style outline foliage.
+ *
+ * The letter stays a filled outline (counters intact). Growth sprouts
+ * real leaves along the perimeter; shape/margin change the foliage.
+ * No medial-axis / skeleton path.
+ */
 import type { BotanicalParams, Contour, Contours, Pt } from '../../types';
-import { chaikin, rng, ss } from '../../path/ops';
+import { matchWinding, rng, signedArea, ss } from '../../path/ops';
 import {
   clampMargin,
   shapeGroup,
   type LeafMargin,
   type LeafShape
 } from './catalog';
+import { buildLaminaStamp, rotate2 } from './leaves';
 
 const MODULE_ID = 'leaf-morphology';
-const MODULE_VERSION = '1.4.0';
+const MODULE_VERSION = '3.0.0';
 
 export function moduleStamp(): string {
   return `${MODULE_ID}@${MODULE_VERSION}`;
@@ -19,27 +27,18 @@ export type MorphologySpec = {
   margin: LeafMargin;
 };
 
-type Stamp = {
+const hypot = (dx: number, dy: number) => Math.hypot(dx, dy) || 1;
+
+type EdgeSample = {
   x: number;
   y: number;
   tx: number;
   ty: number;
+  /** Unit normal pointing toward empty space (outside letter / into counter). */
   nx: number;
   ny: number;
   field: number;
 };
-
-type LivingRing = {
-  pts: Contour;
-  tx: Float64Array;
-  ty: Float64Array;
-  nx: Float64Array;
-  ny: Float64Array;
-  field: Float64Array;
-  tmp: Float64Array;
-};
-
-const hypot = (dx: number, dy: number) => Math.hypot(dx, dy) || 1;
 
 function makeNoise1D(R: () => number, cells = 12): (t: number) => number {
   const v = new Float64Array(cells + 1);
@@ -55,7 +54,8 @@ function makeNoise1D(R: () => number, cells = 12): (t: number) => number {
 }
 
 function centroid(contour: Contour): Pt {
-  let cx = 0, cy = 0;
+  let cx = 0;
+  let cy = 0;
   for (let i = 0; i < contour.length; i++) {
     cx += contour[i]!.x;
     cy += contour[i]!.y;
@@ -64,24 +64,29 @@ function centroid(contour: Contour): Pt {
   return { x: cx / n, y: cy / n };
 }
 
-function buildRing(contour: Contour, spacing: number): LivingRing | null {
+/** Dense samples along a closed contour with tangent + empty-space normal. */
+function sampleEdge(
+  contour: Contour,
+  spacing: number,
+  intoEmpty: 1 | -1
+): { samples: EdgeSample[]; length: number } {
   const n0 = contour.length;
-  if (n0 < 3) return null;
+  if (n0 < 3) return { samples: [], length: 0 };
 
   const segLen = new Float64Array(n0);
   let total = 0;
   for (let i = 0; i < n0; i++) {
-    const a = contour[i]!, b = contour[(i + 1) % n0]!;
+    const a = contour[i]!;
+    const b = contour[(i + 1) % n0]!;
     const L = hypot(b.x - a.x, b.y - a.y);
     segLen[i] = L;
     total += L;
   }
-  if (total < 1e-6) return null;
+  if (total < 1e-6) return { samples: [], length: 0 };
 
-  const count = Math.max(12, Math.round(total / Math.max(spacing * 0.45, 0.5)));
+  const count = Math.max(16, Math.round(total / Math.max(spacing * 0.4, 0.4)));
   const step = total / count;
   const pts: Contour = new Array(count);
-
   let acc = 0;
   let i = 0;
   for (let k = 0; k < count; k++) {
@@ -97,512 +102,185 @@ function buildRing(contour: Contour, spacing: number): LivingRing | null {
     pts[k] = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   }
 
-  const ring: LivingRing = {
-    pts,
-    tx: new Float64Array(count),
-    ty: new Float64Array(count),
-    nx: new Float64Array(count),
-    ny: new Float64Array(count),
-    field: new Float64Array(count),
-    tmp: new Float64Array(count)
-  };
-  refreshRingFrames(ring);
-  return ring;
-}
-
-/** Recompute tangents + outward normals (away from ring centroid). */
-function refreshRingFrames(ring: LivingRing): void {
-  const pts = ring.pts;
-  const count = pts.length;
-  const c = centroid(pts);
+  const c = centroid(contour);
+  const samples: EdgeSample[] = [];
   for (let k = 0; k < count; k++) {
     const prev = pts[(k - 1 + count) % count]!;
     const next = pts[(k + 1) % count]!;
-    const dx = next.x - prev.x;
-    const dy = next.y - prev.y;
-    const L = hypot(dx, dy);
-    ring.tx[k] = dx / L;
-    ring.ty[k] = dy / L;
-    let ngx = -ring.ty[k]!;
-    let ngy = ring.tx[k]!;
     const p = pts[k]!;
-    if (ngx * (c.x - p.x) + ngy * (c.y - p.y) > 0) {
-      ngx = -ngx;
-      ngy = -ngy;
+    let tx = next.x - prev.x;
+    let ty = next.y - prev.y;
+    const L = hypot(tx, ty);
+    tx /= L;
+    ty /= L;
+    // Candidate normal perpendicular to tangent.
+    let nx = -ty;
+    let ny = tx;
+    // Face away from contour centroid, then flip so we always grow into empty space.
+    if (nx * (c.x - p.x) + ny * (c.y - p.y) > 0) {
+      nx = -nx;
+      ny = -ny;
     }
-    ring.nx[k] = ngx;
-    ring.ny[k] = ngy;
+    nx *= intoEmpty;
+    ny *= intoEmpty;
+    samples.push({ x: p.x, y: p.y, tx, ty, nx, ny, field: 0.5 });
   }
+  return { samples, length: total };
 }
 
-/** Ray ↔ segment; returns distance along ray or null. */
-function raySegmentHit(
-  ox: number,
-  oy: number,
-  dx: number,
-  dy: number,
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number
-): number | null {
-  const ex = bx - ax;
-  const ey = by - ay;
-  const den = dx * ey - dy * ex;
-  if (Math.abs(den) < 1e-10) return null;
-  const fx = ax - ox;
-  const fy = ay - oy;
-  const t = (fx * ey - fy * ex) / den;
-  const u = (fx * dy - fy * dx) / den;
-  if (t <= 1e-4 || u < 0 || u > 1) return null;
-  return t;
-}
-
-/** Nearest forward hit of a ray against one closed contour. */
-function rayContourHit(
-  ox: number,
-  oy: number,
-  dx: number,
-  dy: number,
-  contour: Contour,
-  minT: number
-): number {
-  let best = Infinity;
-  const n = contour.length;
+function paintField(samples: EdgeSample[], R: () => number): void {
+  const n = samples.length;
+  if (n < 3) return;
+  const lo = makeNoise1D(R, Math.max(4, Math.round(n / 14)));
+  const mid = makeNoise1D(R, Math.max(7, Math.round(n / 7)));
   for (let i = 0; i < n; i++) {
-    const a = contour[i]!;
-    const b = contour[(i + 1) % n]!;
-    const t = raySegmentHit(ox, oy, dx, dy, a.x, a.y, b.x, b.y);
-    if (t !== null && t > minT && t < best) best = t;
+    const t = i / n;
+    samples[i]!.field = Math.min(1, Math.max(0, 0.5 + 0.48 * (lo(t) * 0.55 + mid(t * 1.3) * 0.45)));
   }
-  return best;
 }
 
-/** Local stroke width via inward ray against all glyph contours. */
-function strokeWidthAt(
-  ox: number,
-  oy: number,
-  nx: number,
-  ny: number,
-  contours: Contours,
-  maxSearch: number
-): number {
-  // Outward normal → march −n into the ink until the opposite edge.
-  const dx = -nx;
-  const dy = -ny;
-  let best = Infinity;
-  for (let ci = 0; ci < contours.length; ci++) {
-    const hit = rayContourHit(ox, oy, dx, dy, contours[ci]!, 0.4);
-    if (hit < best) best = hit;
+function pickBuds(
+  samples: EdgeSample[],
+  perimeter: number,
+  spacing: number,
+  R: () => number
+): EdgeSample[] {
+  if (!samples.length || perimeter < 1e-6) return [];
+  const buds: EdgeSample[] = [];
+  let target = spacing * (0.25 + R() * 0.5);
+  let acc = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const a = samples[i]!;
+    const b = samples[(i + 1) % samples.length]!;
+    const L = hypot(b.x - a.x, b.y - a.y);
+    while (target <= acc + L && buds.length < 2500) {
+      const t = (target - acc) / (L || 1e-6);
+      const field = a.field * (1 - t) + b.field * t;
+      let tx = a.tx * (1 - t) + b.tx * t;
+      let ty = a.ty * (1 - t) + b.ty * t;
+      let nx = a.nx * (1 - t) + b.nx * t;
+      let ny = a.ny * (1 - t) + b.ny * t;
+      const tL = hypot(tx, ty);
+      const nL = hypot(nx, ny);
+      buds.push({
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        tx: tx / tL,
+        ty: ty / tL,
+        nx: nx / nL,
+        ny: ny / nL,
+        field
+      });
+      target += spacing * (0.65 + R() * 0.7) * (1.15 - 0.35 * field);
+    }
+    acc += L;
   }
-  if (!Number.isFinite(best) || best > maxSearch) return maxSearch * 0.22;
-  return best;
+  return buds;
 }
 
 /**
- * Move ring samples onto the stroke skeleton (medial axis approx):
- * for each outline sample, half the local ink width along the inward normal.
+ * Graft leaves along glyph edges. Bases sink into the fill (no gap);
+ * length/lean/curl vary so the bush reads organic, not stamped.
  */
-function insetRingToSkeleton(
-  ring: LivingRing,
-  contours: Contours,
-  maxInset: number
-): void {
-  if (maxInset <= 0) return;
-  const pts = ring.pts;
-  const n = pts.length;
-  const maxSearch = Math.max(maxInset * 5, 10);
-  for (let i = 0; i < n; i++) {
-    const p = pts[i]!;
-    const width = strokeWidthAt(p.x, p.y, ring.nx[i]!, ring.ny[i]!, contours, maxSearch);
-    const inset = Math.min(maxInset, width * 0.5);
-    pts[i] = {
-      x: p.x - ring.nx[i]! * inset,
-      y: p.y - ring.ny[i]! * inset
-    };
-  }
-  refreshRingFrames(ring);
-}
-
-function seedField(ring: LivingRing, R: () => number): void {
-  const n = ring.pts.length;
-  const lo = makeNoise1D(R, Math.max(4, Math.round(n / 16)));
-  const mid = makeNoise1D(R, Math.max(7, Math.round(n / 8)));
-  for (let i = 0; i < n; i++) {
-    const t = i / n;
-    const raw = lo(t) * 0.55 + mid(t * 1.4 + 0.2) * 0.45;
-    ring.field[i] = Math.min(1, Math.max(0, 0.5 + 0.45 * raw));
-  }
-}
-
-function diffuseField(ring: LivingRing, iterations: number, rate: number): void {
-  const field = ring.field;
-  const tmp = ring.tmp;
-  const n = field.length;
-  if (n < 3 || iterations <= 0) return;
-  const a = Math.min(0.45, Math.max(0.05, rate));
-  for (let it = 0; it < iterations; it++) {
-    for (let i = 0; i < n; i++) {
-      const l = field[(i - 1 + n) % n]!;
-      const c = field[i]!;
-      const r = field[(i + 1) % n]!;
-      tmp[i] = c + a * (l + r - 2 * c);
-    }
-    field.set(tmp);
-  }
-}
-
-function reactField(field: Float64Array, rate: number, threshold = 0.45): void {
-  if (rate < 1e-4) return;
-  for (let i = 0; i < field.length; i++) {
-    const f = field[i]!;
-    field[i] = Math.min(1, Math.max(0, f + rate * f * (1 - f) * (f - threshold)));
-  }
-}
-
-function stampsFromRing(ring: LivingRing, baseSpacing: number): Stamp[] {
-  const n = ring.pts.length;
-  if (n < 3) return [];
-
-  const segLen = new Float64Array(n);
-  let total = 0;
-  for (let i = 0; i < n; i++) {
-    const a = ring.pts[i]!, b = ring.pts[(i + 1) % n]!;
-    const L = hypot(b.x - a.x, b.y - a.y);
-    segLen[i] = L;
-    total += L;
-  }
-  if (total < 1e-6) return [];
-
-  const stamps: Stamp[] = [];
-  let acc = 0;
-  let i = 0;
-  let target = baseSpacing * 0.5;
-
-  while (target < total && stamps.length < 4000) {
-    while (i < n - 1 && acc + segLen[i]! < target) {
-      acc += segLen[i]!;
-      i++;
-    }
-    const a = ring.pts[i]!;
-    const b = ring.pts[(i + 1) % n]!;
-    const sl = segLen[i] || 1e-6;
-    const t = (target - acc) / sl;
-    const idx = Math.min(n - 1, Math.max(0, i));
-    const field = ring.field[idx] ?? 0.5;
-    stamps.push({
-      x: a.x + (b.x - a.x) * t,
-      y: a.y + (b.y - a.y) * t,
-      tx: ring.tx[idx]!,
-      ty: ring.ty[idx]!,
-      nx: ring.nx[idx]!,
-      ny: ring.ny[idx]!,
-      field
-    });
-    target += baseSpacing * Math.max(0.45, 1.45 - 0.85 * field);
-  }
-  return stamps;
-}
-
-/** Half-width profile along midrib t∈[0,1] before margin. */
-function shapeHalfWidth(shape: LeafShape, t: number, side: number, R: () => number): number {
-  const g = shapeGroup(shape);
-  const tip = Math.pow(Math.max(0, Math.sin(Math.PI * Math.pow(t, 0.85))), 0.55);
-
-  if (shape === 'acicular') {
-    return Math.pow(1 - t, 0.55) * 0.06;
-  }
-  if (shape === 'linear') {
-    return tip * 0.08 * (0.85 + 0.15 * Math.sin(t * Math.PI * 2));
-  }
-  if (shape === 'lanceolate') {
-    const peak = 0.38;
-    const u = Math.min(Math.pow(t / peak, 0.7), Math.pow((1 - t) / (1 - peak), 1.1));
-    return Math.max(0, u) * 0.18;
-  }
-  if (shape === 'ovate') {
-    const peak = 0.32;
-    const u = Math.min(Math.pow(t / peak, 0.65), Math.pow((1 - t) / (1 - peak), 1.05));
-    return Math.max(0, u) * 0.26;
-  }
-  if (shape === 'obovate') {
-    const peak = 0.65;
-    const u = Math.min(Math.pow(t / peak, 0.9), Math.pow((1 - t) / (1 - peak), 0.7));
-    return Math.max(0, u) * 0.26;
-  }
-  if (shape === 'elliptic') {
-    return Math.pow(Math.sin(Math.PI * t), 0.7) * 0.22;
-  }
-  if (shape === 'orbicular') {
-    const u = Math.sin(Math.PI * t);
-    return Math.pow(Math.max(0, u), 0.35) * 0.42;
-  }
-  if (shape === 'reniform') {
-    const u = Math.sin(Math.PI * Math.pow(t, 0.7));
-    const notch = 1 - 0.35 * Math.exp(-Math.pow((t - 0.08) / 0.1, 2));
-    return Math.pow(Math.max(0, u), 0.4) * 0.38 * notch;
-  }
-  if (shape === 'cordate') {
-    const u = Math.sin(Math.PI * Math.pow(t, 0.55));
-    const shoulder = 1 + 0.35 * Math.exp(-Math.pow((t - 0.18) / 0.12, 2));
-    return Math.pow(Math.max(0, u), 0.45) * 0.3 * shoulder;
-  }
-  if (shape === 'deltoid') {
-    return Math.max(0, (1 - t) * (0.08 + t * 0.4));
-  }
-  if (shape === 'hastate' || shape === 'sagittate') {
-    const u = Math.sin(Math.PI * Math.pow(t, 0.75));
-    const barb = 0.55 * Math.exp(-Math.pow((t - 0.12) / 0.08, 2));
-    const fold = shape === 'sagittate' ? 1 - 0.2 * ss(0, 0.25, t) : 1;
-    return Math.pow(Math.max(0, u), 0.5) * (0.14 + barb) * fold;
-  }
-  if (shape === 'falcate') {
-    const u = Math.sin(Math.PI * t);
-    return Math.pow(Math.max(0, u), 0.6) * 0.16 * (1 + side * 0.18);
-  }
-  if (shape === 'flabellate') {
-    const flare = Math.pow(ss(0.02, 0.6, t), 0.55);
-    const cleft = 1 - 0.5 * Math.exp(-Math.pow((t - 0.9) / 0.07, 2));
-    return flare * 0.42 * Math.max(0.06, cleft);
-  }
-  if (g === 'lobed') {
-    const u = Math.sin(Math.PI * Math.pow(t, 0.85));
-    const n = shape === 'palmatifid' ? 3 : shape === 'pinnatisect' ? 5 : 4;
-    const lobes = 0.35 + 0.65 * Math.abs(Math.sin(t * Math.PI * n));
-    return Math.pow(Math.max(0, u), 0.5) * 0.28 * lobes;
-  }
-  // Compound leaflets use a small ovate default; layout handled separately.
-  const peak = 0.35;
-  const u = Math.min(Math.pow(t / peak, 0.7), Math.pow((1 - t) / (1 - peak), 1));
-  return Math.max(0, u) * 0.2 * (1 + (R() - 0.5) * 0.05);
-}
-
-function applyMargin(
-  w: number,
-  t: number,
-  margin: LeafMargin,
-  R: () => number
-): number {
-  if (margin === 'entire' || w <= 1e-6) return w;
-  const band = ss(0.06, 0.16, t) * (1 - ss(0.86, 0.98, t));
-  if (margin === 'ciliate') {
-    const hair = Math.pow(Math.max(0, Math.sin(t * Math.PI * 28 + R())), 4);
-    return w * (1 + 0.12 * hair * band);
-  }
-  if (margin === 'crenate') {
-    return w * (1 + 0.22 * Math.sin(t * Math.PI * 8) * band);
-  }
-  if (margin === 'sinuate' || margin === 'undulate') {
-    const amp = margin === 'sinuate' ? 0.32 : 0.16;
-    return w * (1 + amp * Math.sin(t * Math.PI * 5.5) * band);
-  }
-  if (margin === 'dentate') {
-    const tooth = Math.pow(Math.max(0, Math.sin(t * Math.PI * 9)), 1.4);
-    return w * (1 + 0.32 * tooth * band);
-  }
-  if (margin === 'serrate') {
-    const saw = Math.pow(Math.max(0, Math.sin(t * Math.PI * 9 + 0.4)), 1.2);
-    return w * (1 + 0.3 * saw * band);
-  }
-  if (margin === 'spiny') {
-    const n = 6 + Math.round(R() * 2);
-    const spine = Math.pow(Math.max(0, Math.sin(t * Math.PI * n)), 2.2);
-    return w * (1 + 0.55 * spine * band);
-  }
-  return w;
-}
-
-function unitLeaf(
-  shape: LeafShape,
-  margin: LeafMargin,
-  steps: number,
-  R: () => number,
-  asym = 0
-): Contour {
-  const pts: Contour = [];
-  for (let s = 0; s <= steps; s++) {
-    const t = s / steps;
-    let w = shapeHalfWidth(shape, t, -1, R);
-    w = applyMargin(w, t, margin, R);
-    w *= 1 - asym * 0.08;
-    pts.push({ x: -w, y: t });
-  }
-  for (let s = steps - 1; s >= 1; s--) {
-    const t = s / steps;
-    let w = shapeHalfWidth(shape, t, 1, R);
-    w = applyMargin(w, t, margin, R);
-    w *= 1 + asym * 0.08;
-    pts.push({ x: w, y: t });
-  }
-  return pts;
-}
-
-function transformUnit(
-  unit: Contour,
-  ox: number,
-  oy: number,
-  len: number,
-  widthScale: number,
-  gx: number,
-  gy: number
-): Contour {
-  const sx = -gy;
-  const sy = gx;
-  const out: Contour = new Array(unit.length);
-  for (let i = 0; i < unit.length; i++) {
-    const p = unit[i]!;
-    const lx = p.x * len * widthScale;
-    const ly = p.y * len;
-    out[i] = { x: ox + sx * lx + gx * ly, y: oy + sy * lx + gy * ly };
-  }
-  return out;
-}
-
-function rotate2(gx: number, gy: number, ang: number): Pt {
-  const ca = Math.cos(ang);
-  const sa = Math.sin(ang);
-  return { x: gx * ca - gy * sa, y: gx * sa + gy * ca };
-}
-
-function leafletLayout(shape: LeafShape): { x: number; y: number; ang: number; s: number }[] {
-  if (shape === 'trifoliate') {
-    return [
-      { x: 0, y: 0.15, ang: -0.55, s: 0.72 },
-      { x: 0, y: 0.05, ang: 0, s: 0.85 },
-      { x: 0, y: 0.15, ang: 0.55, s: 0.72 }
-    ];
-  }
-  if (shape === 'palmate') {
-    const n = 5;
-    const out = [];
-    for (let i = 0; i < n; i++) {
-      const u = i / (n - 1);
-      out.push({ x: 0, y: 0.08, ang: -0.85 + u * 1.7, s: 0.55 + (1 - Math.abs(u - 0.5)) * 0.3 });
-    }
-    return out;
-  }
-  if (shape === 'odd_pinnate') {
-    const pairs = 3;
-    const out: { x: number; y: number; ang: number; s: number }[] = [];
-    for (let i = 0; i < pairs; i++) {
-      const y = 0.15 + i * 0.22;
-      out.push({ x: 0, y, ang: -0.85, s: 0.45 });
-      out.push({ x: 0, y, ang: 0.85, s: 0.45 });
-    }
-    out.push({ x: 0, y: 0.88, ang: 0, s: 0.5 });
-    return out;
-  }
-  if (shape === 'bipinnate') {
-    const out: { x: number; y: number; ang: number; s: number }[] = [];
-    const arms = 3;
-    for (let a = 0; a < arms; a++) {
-      const y = 0.2 + a * 0.25;
-      const side = a % 2 === 0 ? -1 : 1;
-      out.push({ x: 0, y, ang: side * 0.9, s: 0.35 });
-      out.push({ x: 0, y: y + 0.06, ang: side * 0.55, s: 0.28 });
-    }
-    out.push({ x: 0, y: 0.9, ang: 0, s: 0.32 });
-    return out;
-  }
-  return [{ x: 0, y: 0, ang: 0, s: 1 }];
-}
-
-function buildLaminaStamp(
-  shape: LeafShape,
-  margin: LeafMargin,
-  stamp: Stamp,
-  len: number,
-  widthScale: number,
-  gx: number,
-  gy: number,
-  R: () => number
-): Contours {
-  const asym = R() * 2 - 1;
-  const group = shapeGroup(shape);
-  const steps = group === 'needle' ? 10 : group === 'compound' ? 12 : 16;
-
-  if (group !== 'compound') {
-    let leaf = unitLeaf(shape, margin, steps, R, asym);
-    leaf = transformUnit(leaf, stamp.x, stamp.y, len, widthScale, gx, gy);
-    return [chaikin(leaf, 1)];
-  }
-
-  const leafletShape: LeafShape = 'ovate';
-  const layout = leafletLayout(shape);
-  const out: Contours = [];
-  for (const L of layout) {
-    const dir = rotate2(gx, gy, L.ang + (R() - 0.5) * 0.12);
-    const ox = stamp.x + (-gy) * L.x * len + gx * L.y * len;
-    const oy = stamp.y + gx * L.x * len + gy * L.y * len;
-    let leaflet = unitLeaf(leafletShape, margin, steps, R, asym * 0.5);
-    leaflet = transformUnit(leaflet, ox, oy, len * L.s, widthScale * 0.9, dir.x, dir.y);
-    out.push(chaikin(leaflet, 1));
-  }
-  return out;
-}
-
-function stampFlora(
-  stamps: Stamp[],
+function growFoliage(
+  buds: EdgeSample[],
   opts: {
     amp: number;
     grow: number;
     shape: LeafShape;
     margin: LeafMargin;
+    wantPositive: boolean;
     R: () => number;
   }
 ): Contours {
-  const { amp, grow, shape, margin, R } = opts;
-  const lamina: Contours = [];
-  if (!stamps.length) return lamina;
+  const { amp, grow, shape, margin, wantPositive, R } = opts;
+  const out: Contours = [];
+  if (!buds.length) return out;
 
-  const leanN = makeNoise1D(R, Math.max(5, Math.round(stamps.length / 10)));
-  let alt = R() < 0.5 ? 1 : -1;
+  const leanN = makeNoise1D(R, Math.max(5, Math.round(buds.length / 8)));
+  const leanN2 = makeNoise1D(R, Math.max(7, Math.round(buds.length / 5)));
+  // Sparse buds early → dense bush late (Primavera GROW feel).
+  const keep = 0.32 + grow * 0.62;
+  const group = shapeGroup(shape);
+  const widthScale =
+    group === 'needle' ? 0.42
+      : group === 'compound' ? 0.68
+        : group === 'broad' ? 0.82
+          : 0.68;
 
-  // Visible from the first notch; denser as leaves cover the letter.
-  const keepChance = 0.55 + grow * 0.45;
+  for (let i = 0; i < buds.length; i++) {
+    const s = buds[i]!;
+    if (R() > keep) continue;
+    if (s.field < 0.1 && R() < 0.3) continue;
 
-  for (let i = 0; i < stamps.length; i++) {
-    const s = stamps[i]!;
-    const phase = i / stamps.length;
-    if (R() > keepChance) {
-      alt *= -1;
-      continue;
+    const phase = i / buds.length;
+    const field = 0.5 + 0.55 * s.field;
+    // Wide size scatter — short buds next to long runners.
+    const sizeRoll = R();
+    const sizeMul =
+      sizeRoll < 0.18 ? 0.35 + R() * 0.3
+        : sizeRoll > 0.82 ? 1.05 + R() * 0.55
+          : 0.65 + R() * 0.55;
+    const len = amp * field * (0.32 + grow * 1.1) * sizeMul;
+    if (len < amp * 0.1) continue;
+
+    // Irregular lean (no left/right parade).
+    const lean =
+      leanN(phase) * (0.55 + grow * 0.7) +
+      leanN2(phase * 1.7) * 0.45 +
+      (R() - 0.5) * (0.7 + grow * 0.6);
+    const dir = rotate2(s.nx, s.ny, lean);
+
+    // Sink base into the letter so lamina overlaps the fill — no halo gap.
+    const sink = len * (0.14 + R() * 0.12);
+    const slide = (R() - 0.5) * len * 0.22;
+    const ox = s.x - s.nx * sink + s.tx * slide;
+    const oy = s.y - s.ny * sink + s.ty * slide;
+
+    const leaves = buildLaminaStamp(
+      shape,
+      margin,
+      { x: ox, y: oy },
+      len,
+      widthScale * (0.65 + R() * 0.55),
+      dir.x,
+      dir.y,
+      R
+    );
+    for (const leaf of leaves) {
+      if (leaf.length >= 3) out.push(matchWinding(leaf, wantPositive));
     }
-    const field = 0.55 + 0.5 * s.field;
-    const organic = 0.8 + 0.4 * R();
-    const pulse = 1 - 0.18 * (0.5 + 0.5 * Math.sin(i * 0.73 + grow));
-    if (s.field < 0.1 + (1 - grow) * 0.08 && R() < 0.15) {
-      alt *= -1;
-      continue;
+
+    // Occasional twin bud from the same node (clustered, less regular).
+    if (R() < 0.12 + grow * 0.18) {
+      const lean2 = lean + (R() < 0.5 ? -1 : 1) * (0.4 + R() * 0.9);
+      const dir2 = rotate2(s.nx, s.ny, lean2);
+      const len2 = len * (0.4 + R() * 0.45);
+      const twins = buildLaminaStamp(
+        shape,
+        margin,
+        {
+          x: ox + s.tx * (R() - 0.5) * len * 0.15,
+          y: oy + s.ty * (R() - 0.5) * len * 0.15
+        },
+        len2,
+        widthScale * (0.55 + R() * 0.4),
+        dir2.x,
+        dir2.y,
+        R
+      );
+      for (const leaf of twins) {
+        if (leaf.length >= 3) out.push(matchWinding(leaf, wantPositive));
+      }
     }
-    const len = amp * field * organic * pulse;
-    if (len < amp * 0.08) {
-      alt *= -1;
-      continue;
-    }
-
-    // Graft along the stroke; lean outward more as growth covers the letter.
-    const out = 0.35 + grow * 0.45;
-    let gx = s.tx * (1 - out) + s.nx * out;
-    let gy = s.ty * (1 - out) + s.ny * out;
-    const gl = hypot(gx, gy);
-    gx /= gl;
-    gy /= gl;
-
-    const lean = (0.2 + grow * 0.4) * (0.55 + R() * 0.9) * alt + leanN(phase) * 0.3;
-    const dir = rotate2(gx, gy, lean);
-    const widthScale = 0.7 + R() * 0.5;
-
-    const leaves = buildLaminaStamp(shape, margin, s, len, widthScale, dir.x, dir.y, R);
-    for (const leaf of leaves) lamina.push(leaf);
-    alt *= -1;
   }
-  return lamina;
+  return out;
 }
 
 /**
- * Leaves graft onto the glyph and grow to cover it.
- * Growth 1% already shows buds; higher values enlarge and densify.
+ * Growth 0 = intact letter.
+ * Growth rises = foliage along outlines (Primavera bush), leaf shape/margin vary the flora.
+ * Letter contours are always kept so the form stays recognizable until dense cover.
  */
 export function applyMorphology(
   contours: Contours,
@@ -612,108 +290,198 @@ export function applyMorphology(
   spec: MorphologySpec
 ): Contours {
   const g = Math.min(1, Math.max(0, params.growth * 0.01));
-  if (g <= 0) return contours.map((c) => c.slice());
+  const plain: Contours = [];
+  for (const c of contours) {
+    if (c.length >= 3) plain.push(c.slice());
+  }
+  if (g <= 0 || !plain.length) return plain;
 
-  // Mild ease — first percent is already a real bud size.
-  const grow = ss(0, 1, Math.pow(g, 0.72));
+  // Slow early ease → letter stays clear; late growth densifies into a bush.
+  const grow = ss(0, 1, Math.pow(g, 0.82));
   const shape = spec.shape;
   const margin = clampMargin(shape, spec.margin);
-
   const group = shapeGroup(shape);
-  const baseAmp =
-    group === 'needle' ? 0.14
-      : group === 'compound' ? 0.2
-        : group === 'broad' || shape === 'flabellate' ? 0.17
-          : 0.16;
-  const baseSpacing =
-    group === 'compound' ? 0.085
-      : group === 'needle' ? 0.04
-        : 0.06;
 
-  // Floor amp so g≈0.01 is visible; then scale up to cover the letter.
-  const amp = baseAmp * fontSize * (0.22 + grow * 1.15);
-  const spacing = fontSize * Math.max(0.018, baseSpacing * (1.85 - grow * 0.85));
-  // Low growth sits near the outline; high growth sinks into the stroke.
-  const skeletonInset = fontSize * (0.015 + grow * 0.07);
+  const baseAmp =
+    group === 'needle' ? 0.055
+      : group === 'compound' ? 0.09
+        : group === 'broad' || shape === 'flabellate' ? 0.085
+          : 0.07;
+  // Denser buds as growth rises (Primavera “hedgerow” packing).
+  const baseSpacing =
+    group === 'needle' ? 0.038
+      : group === 'compound' ? 0.055
+        : 0.048;
+
+  const amp = baseAmp * fontSize * (0.55 + grow * 1.35);
+  const spacing = fontSize * Math.max(0.014, baseSpacing * (1.55 - grow * 0.95));
+
+  let wantPositive = true;
+  let bestAbs = 0;
+  for (const c of plain) {
+    const a = signedArea(c);
+    if (Math.abs(a) > bestAbs) {
+      bestAbs = Math.abs(a);
+      wantPositive = a > 0;
+    }
+  }
 
   const R = rng(seed);
-  const lamina: Contours = [];
+  // Letter first — counters keep their opposite winding under nonzero fill.
+  const lamina: Contours = plain.map((c) => c.slice());
 
-  // Keep the letter under the leaves until they largely cover it.
-  if (grow < 0.92) {
-    for (const c of contours) {
-      if (c.length >= 3) lamina.push(c.slice());
-    }
+  for (let i = 0; i < plain.length; i++) {
+    const c = plain[i]!;
+    const area = signedArea(c);
+    const isHole = (area > 0) !== wantPositive;
+    // Outer edges grow outward; hole edges grow into the counter (bush fills in).
+    const intoEmpty: 1 | -1 = isHole ? -1 : 1;
+    const Rc = rng(`${seed}|e${i}|${(R() * 1e9) | 0}`);
+    const { samples, length } = sampleEdge(c, Math.max(0.6, spacing * 0.35), intoEmpty);
+    if (!samples.length) continue;
+    paintField(samples, Rc);
+    // Holes get slightly sparser buds so counters don't vanish too early.
+    const edgeSpacing = spacing * (isHole ? 1.25 - grow * 0.2 : 1);
+    const buds = pickBuds(samples, length, edgeSpacing, Rc);
+    const flora = growFoliage(buds, {
+      amp: amp * (isHole ? 0.75 : 1),
+      grow,
+      shape,
+      margin,
+      wantPositive,
+      R: Rc
+    });
+    for (const leaf of flora) lamina.push(leaf);
   }
 
-  for (let i = 0; i < contours.length; i++) {
-    const c = contours[i]!;
-    if (c.length < 3) continue;
-    const Rc = rng(`${seed}|c${i}|${(R() * 1e9) | 0}`);
-    const ring = buildRing(c, Math.max(0.8, spacing * 0.35));
-    if (!ring) continue;
-    insetRingToSkeleton(ring, contours, skeletonInset);
-    seedField(ring, Rc);
-    diffuseField(ring, 1 + Math.round(grow * 4), 0.28);
-    reactField(ring.field, 0.04 + 0.04 * grow);
-    if (grow > 0.25) diffuseField(ring, 2, 0.18);
-
-    const stamps = stampsFromRing(ring, spacing);
-    const leaves = stampFlora(stamps, { amp, grow, shape, margin, R: Rc });
-    for (const leaf of leaves) lamina.push(leaf);
-  }
-
-  return lamina.length ? lamina : contours.map((c) => c.slice());
+  return lamina;
 }
 
-/** Deterministic unit-leaf SVG paths for shape chips (viewBox-ready). */
-export function leafShapeIcon(shape: LeafShape): { paths: string[]; viewBox: string } {
-  const margin = clampMargin(shape, 'entire');
-  const quiet = () => 0.37;
-  const group = shapeGroup(shape);
-  const steps = group === 'needle' ? 10 : group === 'compound' ? 12 : 14;
-  const contours: Contours = [];
-
-  if (group === 'compound') {
-    const layout = leafletLayout(shape);
-    for (const L of layout) {
-      const dir = rotate2(0, 1, L.ang);
-      let leaflet = unitLeaf('ovate', margin, steps, quiet, 0);
-      leaflet = transformUnit(leaflet, L.x, L.y, L.s, 0.9, dir.x, dir.y);
-      contours.push(leaflet);
-    }
-  } else {
-    contours.push(unitLeaf(shape, margin, steps, quiet, 0));
-  }
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  const paths: string[] = [];
+/**
+ * VF-safe morphology: fixed bud sites + leaf topology; only amplitude follows growth.
+ * Masters at growth 0 and 1 share contour counts / can be resampled to equal point counts.
+ */
+export function applyMorphologyStable(
+  contours: Contours,
+  growth01: number,
+  fontSize: number,
+  seed: string,
+  spec: MorphologySpec
+): Contours {
+  const grow = Math.min(1, Math.max(0, growth01));
+  const plain: Contours = [];
   for (const c of contours) {
-    const parts: string[] = [];
-    for (let i = 0; i < c.length; i++) {
-      const p = c[i]!;
-      if (p.x < minX) minX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y > maxY) maxY = p.y;
-      parts.push(`${i === 0 ? 'M' : 'L'}${p.x.toFixed(4)} ${p.y.toFixed(4)}`);
+    if (c.length >= 3) plain.push(c.slice());
+  }
+  if (!plain.length) return plain;
+
+  const shape = spec.shape;
+  const margin = clampMargin(shape, spec.margin);
+  const group = shapeGroup(shape);
+  const baseAmp =
+    group === 'needle' ? 0.055
+      : group === 'compound' ? 0.09
+        : group === 'broad' || shape === 'flabellate' ? 0.085
+          : 0.07;
+  const baseSpacing =
+    group === 'needle' ? 0.038
+      : group === 'compound' ? 0.055
+        : 0.048;
+
+  // Pack at max density; scale leaf length by growth (tiny at 0, full at 1).
+  const spacing = fontSize * Math.max(0.014, baseSpacing * 0.6);
+  const amp = baseAmp * fontSize * (0.06 + grow * 1.84);
+
+  let wantPositive = true;
+  let bestAbs = 0;
+  for (const c of plain) {
+    const a = signedArea(c);
+    if (Math.abs(a) > bestAbs) {
+      bestAbs = Math.abs(a);
+      wantPositive = a > 0;
     }
-    parts.push('Z');
-    paths.push(parts.join(''));
   }
 
-  const pad = 0.06;
-  const w = Math.max(0.08, maxX - minX) + pad * 2;
-  const h = Math.max(0.08, maxY - minY) + pad * 2;
-  return {
-    paths,
-    viewBox: `${(minX - pad).toFixed(4)} ${(minY - pad).toFixed(4)} ${w.toFixed(4)} ${h.toFixed(4)}`
-  };
+  const R = rng(seed);
+  const lamina: Contours = plain.map((c) => c.slice());
+
+  for (let i = 0; i < plain.length; i++) {
+    const c = plain[i]!;
+    const area = signedArea(c);
+    const isHole = (area > 0) !== wantPositive;
+    const intoEmpty: 1 | -1 = isHole ? -1 : 1;
+    const Rc = rng(`${seed}|vf|e${i}`);
+    const { samples, length } = sampleEdge(c, Math.max(0.6, spacing * 0.35), intoEmpty);
+    if (!samples.length) continue;
+    paintField(samples, Rc);
+    const buds = pickBuds(samples, length, spacing * (isHole ? 1.2 : 1), Rc);
+    const flora = growFoliageStable(buds, {
+      amp: amp * (isHole ? 0.75 : 1),
+      shape,
+      margin,
+      wantPositive,
+      R: Rc
+    });
+    for (const leaf of flora) lamina.push(leaf);
+  }
+
+  return lamina;
 }
 
+/** Every bud emits one leaf — no random dropout (VF topology lock). */
+function growFoliageStable(
+  buds: EdgeSample[],
+  opts: {
+    amp: number;
+    shape: LeafShape;
+    margin: LeafMargin;
+    wantPositive: boolean;
+    R: () => number;
+  }
+): Contours {
+  const { amp, shape, margin, wantPositive, R } = opts;
+  const out: Contours = [];
+  if (!buds.length || amp < 1e-6) return out;
+
+  const group = shapeGroup(shape);
+  const widthScale =
+    group === 'needle' ? 0.42
+      : group === 'compound' ? 0.68
+        : group === 'broad' ? 0.82
+          : 0.68;
+
+  for (let i = 0; i < buds.length; i++) {
+    const s = buds[i]!;
+    // Deterministic size from index — same for every growth master.
+    const u = (i * 0.6180339887) % 1;
+    const sizeMul = 0.55 + u * 0.7;
+    const field = 0.45 + 0.55 * s.field;
+    const len = Math.max(amp * 0.12, amp * field * 0.85 * sizeMul);
+    const lean = (u - 0.5) * 1.1 + (s.field - 0.5) * 0.4;
+    const dir = rotate2(s.nx, s.ny, lean);
+    const sink = len * 0.18;
+    const ox = s.x - s.nx * sink;
+    const oy = s.y - s.ny * sink;
+    // Burn R draws so stamp RNG stays aligned across masters.
+    const Rr = rng(`vf-leaf|${i}|${(R() * 1e9) | 0}`);
+    const leaves = buildLaminaStamp(
+      shape,
+      margin,
+      { x: ox, y: oy },
+      len,
+      widthScale * (0.75 + u * 0.35),
+      dir.x,
+      dir.y,
+      Rr
+    );
+    for (const leaf of leaves) {
+      if (leaf.length >= 3) out.push(matchWinding(leaf, wantPositive));
+    }
+  }
+  return out;
+}
+
+export { leafShapeIcon, leafMarginIcon } from './leaves';
 export {
   LEAF_SHAPES,
   DEFAULT_SHAPE,

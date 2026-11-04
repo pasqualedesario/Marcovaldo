@@ -35,6 +35,15 @@ export function signedArea(pts: Contour): number {
   return a * 0.5;
 }
 
+/** Align contour winding so flora cannot punch holes under nonzero fill. */
+export function matchWinding(contour: Contour, positive: boolean): Contour {
+  if (contour.length < 3) return contour;
+  const a = signedArea(contour);
+  if (a === 0) return contour;
+  if ((a > 0) === positive) return contour;
+  return contour.slice().reverse();
+}
+
 export function boundsOf(contours: Contours): Bounds {
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
   for (let ci = 0; ci < contours.length; ci++) {

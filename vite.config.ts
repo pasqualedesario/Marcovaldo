@@ -3,7 +3,8 @@ import { defineConfig } from 'vite';
 // Dev: `/` · Production / GitHub Pages: `/Marcovaldo/`
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/Marcovaldo/' : '/',
-  server: { host: true, port: 5173, strictPort: true },
+  // Localhost only — avoids LAN bind overhead and stale multi-host sessions.
+  server: { host: '127.0.0.1', port: 5173, strictPort: true },
   optimizeDeps: {
     include: ['fontkit']
   },

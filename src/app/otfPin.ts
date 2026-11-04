@@ -9,113 +9,72 @@ function rootPad(varName: string, fallback = 16): number {
 type PinOpts = {
   btn: HTMLElement;
   land: HTMLElement;
-  /** When set, reserve this slot while the button is position:fixed. */
-  anchor?: HTMLElement;
-  side: 'right' | 'left';
+  side: 'left';
 };
 
 /**
- * Sticky chrome for ↓ OTF and language:
- * rests in flow, then pins to the bottom. OTF keeps its toolbar X
- * (measured in-flow next to PNG/SVG/PDF); lang locks to the left pad.
+ * Sticky language chip — left pad lock, intrinsic width only.
+ * Never unfixes mid-scroll (avoids jump).
  */
 function mountStickyPin(opts: PinOpts): () => void {
-  const { btn, land, anchor, side } = opts;
-  /** Locked X while pinned — refreshed from in-flow measure when unpinning/resizing. */
+  const { btn, land } = opts;
   let lockLeft: number | null = null;
-
-  let lockWidth: number | null = null;
+  let lockW: number | null = null;
+  let pinned = false;
 
   const clearFixed = () => {
+    pinned = false;
     btn.classList.remove('is-fixed');
     btn.style.top = '';
     btn.style.left = '';
-    btn.style.right = '';
     btn.style.width = '';
+    land.style.width = '';
+    land.style.height = '';
   };
 
-  const restAnchor = () => {
-    if (!anchor) return;
-    anchor.style.display = 'contents';
-    anchor.style.width = '';
-    anchor.style.height = '';
+  const measureW = (): number => {
+    const prev = btn.style.width;
+    btn.style.width = 'auto';
+    const w = Math.max(56, Math.ceil(btn.getBoundingClientRect().width || btn.scrollWidth || 56));
+    btn.style.width = prev;
+    return w;
   };
 
   const sync = () => {
-    clearFixed();
-    restAnchor();
-    land.style.width = '';
-    land.style.height = '';
+    const padB = rootPad('--pad-b');
+    const h = Math.max(1, Math.round(btn.getBoundingClientRect().height || 44));
+    const stickTop = window.innerHeight - padB - h;
 
     if (window.scrollY <= 4) {
       lockLeft = null;
-      lockWidth = null;
+      lockW = null;
+      if (pinned) clearFixed();
       return;
     }
 
-    // In-flow metrics (same band as sibling chips for OTF).
-    // Prefer content width over stretched grid cells (mobile width:100%).
-    const br = btn.getBoundingClientRect();
-    const contentW = Math.ceil(
-      Math.max(btn.scrollWidth || 0, (btn as HTMLElement).offsetWidth || 0, 56)
-    );
-    const w = lockWidth ?? Math.min(Math.max(1, Math.round(br.width || contentW)), contentW + 8);
-    const h = Math.max(1, Math.round(br.height || 44));
-    const padB = rootPad('--pad-b');
-    const stickTop = window.innerHeight - padB - h;
-    const landRect = land.getBoundingClientRect();
-
-    if (side === 'right') {
-      if (br.top >= stickTop - 1) {
-        lockLeft = null;
-        lockWidth = null;
-        return;
-      }
-
-      // Capture toolbar X + intrinsic width once per pin session.
-      if (lockLeft == null) lockLeft = Math.round(br.left);
-      if (lockWidth == null) {
-        // Measure with auto width so grid stretch does not inflate the pin.
-        const prev = btn.style.width;
-        btn.style.width = 'auto';
-        lockWidth = Math.max(56, Math.ceil(btn.getBoundingClientRect().width || contentW));
-        btn.style.width = prev;
-      }
-
-      land.style.width = `${lockWidth}px`;
-      land.style.height = `${h}px`;
-      if (anchor) {
-        anchor.style.display = 'inline-flex';
-        anchor.style.width = `${lockWidth}px`;
-        anchor.style.height = `${h}px`;
-      }
-
-      btn.classList.add('is-fixed');
+    if (pinned) {
       btn.style.top = `${stickTop}px`;
-      btn.style.left = `${lockLeft}px`;
-      btn.style.width = `${lockWidth}px`;
       return;
     }
 
-    // Language: stay in flow until the land slot crosses the stick line.
-    if (landRect.top >= stickTop - 1 && landRect.bottom > 0) {
-      lockLeft = null;
-      return;
-    }
+    const landRect = land.getBoundingClientRect();
+    if (landRect.top >= stickTop - 1 && landRect.bottom > 0) return;
 
-    if (lockLeft == null) lockLeft = rootPad('--pad');
-
-    land.style.width = `${w}px`;
+    lockLeft = rootPad('--pad');
+    lockW = measureW();
+    land.style.width = `${lockW}px`;
     land.style.height = `${h}px`;
     btn.classList.add('is-fixed');
     btn.style.top = `${stickTop}px`;
     btn.style.left = `${lockLeft}px`;
+    btn.style.width = `${lockW}px`;
+    pinned = true;
   };
 
   const onResize = () => {
-    // Force a fresh X/width from layout after viewport changes.
     lockLeft = null;
-    lockWidth = null;
+    lockW = null;
+    if (pinned) clearFixed();
     sync();
   };
 
@@ -123,24 +82,110 @@ function mountStickyPin(opts: PinOpts): () => void {
   sync();
   window.addEventListener('scroll', schedule, { passive: true });
   window.addEventListener('resize', onResize);
-  const ro = new ResizeObserver(onResize);
-  ro.observe(land);
-  ro.observe(btn);
-  ro.observe(document.documentElement);
 
   return () => {
     window.removeEventListener('scroll', schedule);
     window.removeEventListener('resize', onResize);
-    ro.disconnect();
     clearFixed();
-    restAnchor();
-    land.style.width = '';
-    land.style.height = '';
   };
 }
 
-export function mountOtfPin(btn: HTMLElement, anchor: HTMLElement, land: HTMLElement): () => void {
-  return mountStickyPin({ btn, land, anchor, side: 'right' });
+/**
+ * Pin Download cluster bottom-right.
+ * Locks right edge once; expand-left must not move the chip while scrolling.
+ */
+export function mountDownloadPin(opts: {
+  cluster: HTMLElement;
+  toggle: HTMLElement;
+  anchor: HTMLElement;
+  land: HTMLElement;
+}): () => void {
+  const { cluster, toggle, anchor, land } = opts;
+  let lockRight: number | null = null;
+  let lockToggleW: number | null = null;
+  let pinned = false;
+
+  const measureToggleW = (): number => {
+    const prev = toggle.style.width;
+    toggle.style.width = 'auto';
+    const w = Math.max(56, Math.ceil(toggle.getBoundingClientRect().width || toggle.scrollWidth || 56));
+    toggle.style.width = prev;
+    return w;
+  };
+
+  const clearFixed = () => {
+    pinned = false;
+    cluster.classList.remove('is-fixed');
+    cluster.style.top = '';
+    cluster.style.right = '';
+    cluster.style.left = '';
+    cluster.style.width = '';
+    toggle.style.width = '';
+    anchor.style.display = '';
+    anchor.style.width = '';
+    anchor.style.height = '';
+    land.style.width = '';
+    land.style.height = '';
+  };
+
+  const applyFixed = (stickTop: number, h: number) => {
+    land.style.width = `${lockToggleW}px`;
+    land.style.height = `${h}px`;
+    anchor.style.display = 'inline-flex';
+    anchor.style.width = `${lockToggleW}px`;
+    anchor.style.height = `${h}px`;
+    cluster.classList.add('is-fixed');
+    cluster.style.top = `${stickTop}px`;
+    cluster.style.right = `${lockRight}px`;
+    toggle.style.width = `${lockToggleW}px`;
+    pinned = true;
+  };
+
+  const sync = () => {
+    const padB = rootPad('--pad-b');
+    const h = Math.max(1, Math.round(toggle.offsetHeight || 44));
+    const stickTop = window.innerHeight - padB - h;
+
+    if (window.scrollY <= 4) {
+      lockRight = null;
+      lockToggleW = null;
+      if (pinned) clearFixed();
+      return;
+    }
+
+    // Already pinned: only refresh vertical stick line — never remeasure X.
+    if (pinned) {
+      cluster.style.top = `${stickTop}px`;
+      return;
+    }
+
+    const br = toggle.getBoundingClientRect();
+    if (br.top >= stickTop - 1) return;
+
+    lockToggleW = measureToggleW();
+    // Same inset as page pad — stable across scroll; expand grows left only.
+    lockRight = rootPad('--pad');
+    applyFixed(stickTop, h);
+  };
+
+  const onResize = () => {
+    lockRight = null;
+    lockToggleW = null;
+    if (pinned) clearFixed();
+    sync();
+  };
+
+  const schedule = createFrameScheduler(sync);
+  sync();
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', onResize);
+  // Do not observe cluster — expand would reset the pin and make it jump.
+
+  return () => {
+    window.removeEventListener('scroll', schedule);
+    window.removeEventListener('resize', onResize);
+    clearFixed();
+  };
 }
 
 export function mountLangPin(btn: HTMLElement, land: HTMLElement): () => void {

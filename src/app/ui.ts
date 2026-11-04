@@ -1,5 +1,6 @@
 import {
   LEAF_SHAPES,
+  leafMarginIcon,
   leafShapeIcon,
   marginsFor,
   type LeafMargin,
@@ -11,7 +12,7 @@ import { exportPdfFromPng } from '../export/pdf';
 import { downloadBlob } from '../lib/download';
 import { createDebouncedRaf } from '../lib/schedule';
 import { $, $canvas, $input, $svg, setRangePct } from '../lib/dom';
-import { formatTrackingEm } from '../lib/math';
+import { clamp, formatTrackingEm } from '../lib/math';
 import { bindTextEdit, setCollapsedRange } from '../lib/textEdit';
 import {
   DEFAULT_FACE,
@@ -36,10 +37,12 @@ import {
   shapeBaseText
 } from './state';
 import { createEngine, type Engine } from './engine';
+import { createGrowthPlay } from './growthPlay';
 import { mountSpecimens } from './specimens';
 import { paintBrand } from './brand';
+import { mountAbout } from './about';
 import { mountFaceChips } from './faceChips';
-import { mountLangPin, mountOtfPin } from './otfPin';
+import { mountDownloadPin, mountLangPin } from './otfPin';
 
 function applyStaticI18n(): void {
   const d = t();
@@ -71,6 +74,16 @@ function applyStaticI18n(): void {
   const growthField = document.querySelector<HTMLLabelElement>('label.field[data-param="growth"]');
   if (growthField) growthField.title = growthLabel;
 
+  const playBtn = document.getElementById('growth-play');
+  const playPressed = playBtn?.getAttribute('aria-pressed') === 'true';
+  playBtn?.setAttribute('aria-label', playPressed ? d.growthPause : d.growthPlay);
+  playBtn?.setAttribute('title', playPressed ? d.growthPause : d.growthPlay);
+
+  const otfStatic = document.getElementById('otf-static');
+  if (otfStatic && otfStatic.getAttribute('aria-busy') !== 'true') {
+    otfStatic.textContent = d.otfStatic;
+  }
+
   for (const a of document.querySelectorAll<HTMLAnchorElement>('.credits-type .credits-link')) {
     a.href = TYPEFACES_URL;
   }
@@ -78,9 +91,28 @@ function applyStaticI18n(): void {
   $('png').textContent = d.png;
   $('svg').textContent = d.svg;
   $('pdf').textContent = d.pdf;
-  $('otf').textContent = d.otf;
+  if ($('otf').getAttribute('aria-busy') !== 'true') $('otf').textContent = d.otf;
+  $('download-toggle').textContent = d.download;
+  $('download-toggle').setAttribute('aria-label', d.downloadAria);
+  $('exports')?.setAttribute('aria-label', d.downloadAria);
   $('reshuffle').textContent = d.reshuffle;
   $('lang').textContent = d.langSwitch;
+
+  const brand = document.getElementById('brand');
+  brand?.setAttribute('aria-label', d.brandHome);
+  brand?.setAttribute('title', d.brandHome);
+  const aboutBrand = document.getElementById('about-brand');
+  aboutBrand?.setAttribute('aria-label', d.brandHome);
+  aboutBrand?.setAttribute('title', d.brandHome);
+  const aboutOpen = document.getElementById('about-open');
+  aboutOpen?.setAttribute('aria-label', d.about);
+  aboutOpen?.setAttribute('title', d.about);
+  document.getElementById('about-sheet')?.setAttribute('aria-label', d.about);
+  const aboutGen = document.getElementById('about-close');
+  aboutGen?.setAttribute('aria-label', d.aboutGenerator);
+  aboutGen?.setAttribute('title', d.aboutGenerator);
+  const aboutLang = document.getElementById('about-lang');
+  if (aboutLang) aboutLang.textContent = d.langSwitch;
 
   const site = document.getElementById('site-link') as HTMLAnchorElement | null;
   if (site) site.href = d.siteUrl;
@@ -92,6 +124,7 @@ type MorphUi = {
   rebuildChips: () => void;
   syncSliders: () => void;
   refresh: () => void;
+  growthPlay: ReturnType<typeof createGrowthPlay>;
 };
 
 function wireMorphUi(opts: {
@@ -121,24 +154,18 @@ function wireMorphUi(opts: {
     textEl
   } = opts;
 
-  type MorphPanel = 'margins' | 'shapes' | null;
-  let openPanel: MorphPanel = null;
+  let shapesOpen = false;
+  let marginsOpen = false;
 
   const syncTextField = () => {
     textEl.value = state.text;
   };
 
-  const dockEl = document.getElementById('dock');
-
-  const setPanel = (panel: MorphPanel) => {
-    openPanel = panel;
-    const marginsOpen = panel === 'margins';
-    const shapesOpen = panel === 'shapes';
-    marginsEl.hidden = !marginsOpen;
+  const syncPanels = () => {
     shapesEl.hidden = !shapesOpen;
-    marginsToggle.setAttribute('aria-expanded', marginsOpen ? 'true' : 'false');
+    marginsEl.hidden = !marginsOpen;
     shapesToggle.setAttribute('aria-expanded', shapesOpen ? 'true' : 'false');
-    dockEl?.classList.toggle('is-expanded', panel !== null);
+    marginsToggle.setAttribute('aria-expanded', marginsOpen ? 'true' : 'false');
   };
 
   const bindChipClick = (b: HTMLButtonElement, onPick: () => void) => {
@@ -161,12 +188,24 @@ function wireMorphUi(opts: {
   ) => {
     el.replaceChildren();
     for (const id of ids) {
+      const label = labels[id] ?? id;
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'chip';
-      b.textContent = labels[id] ?? id;
+      b.className = 'chip chip-rect chip-icon';
       b.dataset.id = id;
+      b.title = label;
+      b.setAttribute('aria-label', label);
       b.setAttribute('aria-pressed', id === current ? 'true' : 'false');
+      const icon = leafMarginIcon(id);
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', icon.viewBox);
+      svg.setAttribute('aria-hidden', 'true');
+      for (const d of icon.paths) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        svg.append(path);
+      }
+      b.append(svg);
       bindChipClick(b, () => onPick(id));
       el.appendChild(b);
     }
@@ -183,7 +222,7 @@ function wireMorphUi(opts: {
       const label = labels[id] ?? id;
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'chip chip-leaf';
+      b.className = 'chip chip-rect chip-icon';
       b.dataset.id = id;
       b.title = label;
       b.setAttribute('aria-label', label);
@@ -214,12 +253,14 @@ function wireMorphUi(opts: {
   };
 
   marginsToggle.addEventListener('click', () => {
-    setPanel(openPanel === 'margins' ? null : 'margins');
+    marginsOpen = !marginsOpen;
+    syncPanels();
   });
   shapesToggle.addEventListener('click', () => {
-    setPanel(openPanel === 'shapes' ? null : 'shapes');
+    shapesOpen = !shapesOpen;
+    syncPanels();
   });
-  setPanel(null);
+  syncPanels();
 
   const growthEl = $input('p-growth');
   const growthValEl = $('v-growth');
@@ -246,11 +287,39 @@ function wireMorphUi(opts: {
     engine.requestDraw();
   };
 
-  growthEl.addEventListener('input', () => {
-    state.growth = +growthEl.value;
-    setRangePct(growthEl, state.growth);
-    growthValEl.textContent = String(state.growth);
+  const applyGrowth = (n: number) => {
+    const next = clamp(n, 0, 100);
+    if (next === state.growth && +growthEl.value === next) {
+      setRangePct(growthEl, next);
+      return;
+    }
+    state.growth = next;
+    growthEl.value = String(next);
+    growthValEl.textContent = String(next);
+    setRangePct(growthEl, next);
     engine.requestDraw();
+  };
+
+  const playBtn = document.getElementById('growth-play') as HTMLButtonElement | null;
+  const growthPlay = createGrowthPlay({
+    getGrowth: () => state.growth,
+    setGrowth: applyGrowth,
+    onPlayingChange: (playing) => {
+      if (!playBtn) return;
+      playBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+      playBtn.textContent = playing ? '❚❚' : '▶';
+      const d = t();
+      playBtn.setAttribute('aria-label', playing ? d.growthPause : d.growthPlay);
+      playBtn.title = playing ? d.growthPause : d.growthPlay;
+      // Specimens catch up when play stops (skipped while animating).
+      if (!playing) engine.requestDraw();
+    }
+  });
+  playBtn?.addEventListener('click', () => growthPlay.toggle());
+
+  growthEl.addEventListener('input', () => {
+    growthPlay.stop();
+    applyGrowth(+growthEl.value);
   });
   scaleEl.addEventListener('input', () => {
     state.scale = +scaleEl.value;
@@ -265,7 +334,7 @@ function wireMorphUi(opts: {
   });
 
   syncGrowth();
-  return { rebuildChips, syncSliders, refresh };
+  return { rebuildChips, syncSliders, refresh, growthPlay };
 }
 
 function wireTextStage(opts: {
@@ -298,6 +367,17 @@ function wireExports(opts: {
 }): void {
   const { state, engine } = opts;
   const statusEl = $('stage-status');
+  const toggle = $('download-toggle') as HTMLButtonElement;
+  const exportsEl = $('exports');
+
+  const setOpen = (open: boolean) => {
+    exportsEl.hidden = !open;
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+
+  toggle.addEventListener('click', () => {
+    setOpen(exportsEl.hidden);
+  });
 
   $('png').addEventListener('click', () => {
     void engine.rasterizeBlob().then((blob) => {
@@ -312,6 +392,7 @@ function wireExports(opts: {
       bg: state.bg,
       fill: state.color,
       d: state.pathD,
+      lamina: state.lamina,
       meta: engine.meta()
     });
   });
@@ -334,11 +415,48 @@ function wireExports(opts: {
     const btn = $('otf');
     const label = t().otf;
     document.body.classList.add('is-busy');
+    btn.setAttribute('aria-busy', 'true');
     btn.textContent = t().otfBusy;
+    void import('../export/vf')
+      .then(({ exportGrowthVf }) =>
+        exportGrowthVf({
+          basename: exportBasename(state),
+          fontName: state.font!.name,
+          font: state.font!,
+          morph: morphSpec(state),
+          offset: state.offset,
+          onProgress: ({ done, total }) => {
+            btn.textContent = `${done}/${total}`;
+          }
+        })
+      )
+      .catch((err) => {
+        console.error('VF export failed', err);
+        btn.textContent = t().glyphMissing;
+      })
+      .finally(() => {
+        document.body.classList.remove('is-busy');
+        btn.removeAttribute('aria-busy');
+        btn.textContent = label;
+      });
+  });
+
+  // Gauntlet-style static instance at current GROW
+  $('otf-static').addEventListener('click', () => {
+    if (!state.font) {
+      statusEl.hidden = false;
+      statusEl.textContent = t().fontMissing;
+      return;
+    }
+    const btn = $('otf-static');
+    const label = t().otfStatic;
+    document.body.classList.add('is-busy');
+    btn.setAttribute('aria-busy', 'true');
+    btn.textContent = t().otfStaticBusy;
     void import('../export/otf')
       .then(({ exportOtf }) =>
         exportOtf({
-          basename: `${exportBasename(state)}-${state.shape}`,
+          basename: `${exportBasename(state)}-GROW${state.growth | 0}`,
           fontName: state.font!.name,
           font: state.font!,
           params: paramsSnapshot(state),
@@ -349,11 +467,13 @@ function wireExports(opts: {
           }
         })
       )
-      .catch(() => {
+      .catch((err) => {
+        console.error('OTF export failed', err);
         btn.textContent = t().glyphMissing;
       })
       .finally(() => {
         document.body.classList.remove('is-busy');
+        btn.removeAttribute('aria-busy');
         btn.textContent = label;
       });
   });
@@ -376,9 +496,29 @@ export function mountApp(state: AppState): void {
   const statusEl = $('stage-status');
   textEl.value = state.text;
 
+  const applyLangRef = { current: () => {} };
+  const about = mountAbout({
+    state,
+    openBtn: $('about-open'),
+    sheet: $('about-sheet'),
+    panel: $('about-panel'),
+    brandBtn: brandEl,
+    sheetBrand: $('about-brand'),
+    generatorBtn: $('about-close'),
+    workspace: $('workspace'),
+    langBtn: document.getElementById('about-lang'),
+    onLang: () => applyLangRef.current()
+  });
+
   const specimens = mountSpecimens($('specimens'), state);
   const refreshSpecimens = createDebouncedRaf(() => specimens.refresh(), 140);
-  const refreshBrand = createDebouncedRaf(() => paintBrand(brandEl, state), 80);
+  const refreshBrand = createDebouncedRaf(() => {
+    paintBrand(brandEl, state);
+    about.refreshMarks();
+  }, 80);
+
+  /** Set after morph UI mounts — skip heavy specimen redraw while GROW plays. */
+  const growthPlayRef: { current: ReturnType<typeof createGrowthPlay> | null } = { current: null };
 
   const engine = createEngine(state, {
     stage,
@@ -398,8 +538,9 @@ export function mountApp(state: AppState): void {
       sizePtEl.title = px ? `${Math.round(px)} px` : '';
     },
     onAfterDraw: () => {
-      refreshSpecimens();
+      const playing = growthPlayRef.current?.playing() ?? false;
       refreshBrand();
+      if (!playing) refreshSpecimens();
     }
   });
 
@@ -446,6 +587,7 @@ export function mountApp(state: AppState): void {
     trackingValEl,
     textEl
   });
+  growthPlayRef.current = morphUi.growthPlay;
 
   const focusEnd = () => {
     textEl.focus({ preventScroll: true });
@@ -465,26 +607,34 @@ export function mountApp(state: AppState): void {
     specimens.rebuild();
     engine.requestDraw();
   };
+  applyLangRef.current = () => {
+    toggleLang();
+    applyLang();
+  };
 
   applyLang();
   wireTextStage({ state, engine, textEl, caret });
   wireExports({ state, engine });
 
   $('reshuffle').addEventListener('click', () => {
+    morphUi.growthPlay.stop();
     reshuffleAll(state, (shape: LeafShape) => t().shapes[shape] ?? shapeBaseText(shape));
     morphUi.refresh();
   });
-  $('lang').addEventListener('click', () => {
-    toggleLang();
-    applyLang();
-  });
+  $('lang').addEventListener('click', () => applyLangRef.current());
 
   new ResizeObserver(createDebouncedRaf(() => engine.requestDraw())).observe(stage);
-  mountOtfPin($('otf'), $('otf-anchor'), $('otf-land'));
+  mountDownloadPin({
+    cluster: $('download-cluster'),
+    toggle: $('download-toggle'),
+    anchor: $('download-anchor'),
+    land: $('download-land')
+  });
   mountLangPin($('lang'), $('lang-land'));
 
   morphUi.syncSliders();
   paintBrand(brandEl, state);
+  about.refreshMarks();
   focusEnd();
 
   void applyFace(state.face || DEFAULT_FACE).then(() => focusEnd());

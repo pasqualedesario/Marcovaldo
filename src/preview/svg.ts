@@ -54,6 +54,9 @@ function ensureStage(svg: SVGSVGElement): StageNodes {
     clip.appendChild(clipRect);
   }
 
+  // Drop multi-path flora group from earlier preview path.
+  svg.querySelector(':scope > .stage-flora')?.remove();
+
   const nodes: StageNodes = {
     bg: ensureEl(svg, 'rect', 'stage-bg', (r) => {
       r.setAttribute('width', '100%');
@@ -73,7 +76,14 @@ function ensureStage(svg: SVGSVGElement): StageNodes {
   return nodes;
 }
 
-/** Full stage paint. Returns lamina path `d` for selection/export basename. */
+function metaComments(meta?: Record<string, string>): string {
+  if (!meta) return '';
+  return Object.entries(meta)
+    .map(([k, v]) => `<!-- ${k}: ${v.replace(/--/g, '—')} -->`)
+    .join('\n');
+}
+
+/** Full stage paint. Returns lamina path `d` for selection/export. */
 export function renderSvgPreview(
   svg: SVGSVGElement,
   opts: {
@@ -111,15 +121,33 @@ export function svgDocumentString(
   d: string,
   meta?: Record<string, string>
 ): string {
-  const comments = meta
-    ? Object.entries(meta)
-        .map(([k, v]) => `<!-- ${k}: ${v.replace(/--/g, '—')} -->`)
-        .join('\n')
-    : '';
+  const comments = metaComments(meta);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="${SVG_NS}" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
 ${comments}
 <rect width="100%" height="100%" fill="${bg}"/>
 <path fill="${fill}" fill-rule="nonzero" d="${d}"/>
+</svg>`;
+}
+
+/** Hole-safe SVG: one path element per contour. */
+export function svgDocumentFromContours(
+  width: number,
+  height: number,
+  bg: string,
+  fill: string,
+  lamina: Contours,
+  meta?: Record<string, string>
+): string {
+  const comments = metaComments(meta);
+  const paths = lamina
+    .filter((c) => c.length >= 3)
+    .map((c) => `<path fill="${fill}" fill-rule="nonzero" d="${contoursToSvgD([c])}"/>`)
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="${SVG_NS}" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+${comments}
+<rect width="100%" height="100%" fill="${bg}"/>
+${paths}
 </svg>`;
 }
