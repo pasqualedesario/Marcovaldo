@@ -46,6 +46,7 @@ type MorphUi = {
   rebuildChips: () => void;
   syncSliders: () => void;
   refresh: () => void;
+  closePanels: () => void;
   growthPlay: ReturnType<typeof createGrowthPlay>;
 };
 
@@ -62,6 +63,8 @@ function wireMorphUi(opts: {
   trackingValEl: HTMLElement;
   textEl: HTMLInputElement;
   onPlayingChange?: (playing: boolean) => void;
+  /** Fired when Forma or Margine opens — close Download, etc. */
+  onOpenPanel?: () => void;
 }): MorphUi {
   const {
     state,
@@ -75,7 +78,8 @@ function wireMorphUi(opts: {
     trackingEl,
     trackingValEl,
     textEl,
-    onPlayingChange
+    onPlayingChange,
+    onOpenPanel
   } = opts;
 
   let shapesOpen = false;
@@ -177,13 +181,25 @@ function wireMorphUi(opts: {
     });
   };
 
-  marginsToggle.addEventListener('click', () => {
-    marginsOpen = !marginsOpen;
+  const closePanels = () => {
+    shapesOpen = false;
+    marginsOpen = false;
     syncPanels();
+  };
+
+  marginsToggle.addEventListener('click', () => {
+    const next = !marginsOpen;
+    shapesOpen = false;
+    marginsOpen = next;
+    syncPanels();
+    if (next) onOpenPanel?.();
   });
   shapesToggle.addEventListener('click', () => {
-    shapesOpen = !shapesOpen;
+    const next = !shapesOpen;
+    marginsOpen = false;
+    shapesOpen = next;
     syncPanels();
+    if (next) onOpenPanel?.();
   });
   syncPanels();
 
@@ -261,7 +277,7 @@ function wireMorphUi(opts: {
   });
 
   syncGrowth();
-  return { rebuildChips, syncSliders, refresh, growthPlay };
+  return { rebuildChips, syncSliders, refresh, closePanels, growthPlay };
 }
 
 function wireTextStage(opts: {
@@ -390,6 +406,7 @@ export function mountApp(state: AppState): void {
     }
   });
 
+  const exportsCloseRef = { current: () => {} };
   const morphUi = wireMorphUi({
     state,
     engine,
@@ -402,6 +419,7 @@ export function mountApp(state: AppState): void {
     trackingEl,
     trackingValEl,
     textEl,
+    onOpenPanel: () => exportsCloseRef.current(),
     onPlayingChange: (playing) => {
       if (playing) {
         growthHold = state.growth;
@@ -436,7 +454,12 @@ export function mountApp(state: AppState): void {
 
   applyLang();
   wireTextStage({ state, engine, textEl, caret });
-  wireExports({ state, engine });
+  const exportsUi = wireExports({
+    state,
+    engine,
+    onOpen: () => morphUi.closePanels()
+  });
+  exportsCloseRef.current = exportsUi.close;
 
   $('reshuffle').addEventListener('click', () => {
     morphUi.growthPlay.stop();

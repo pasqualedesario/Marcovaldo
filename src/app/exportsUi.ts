@@ -7,8 +7,13 @@ import type { Engine } from './engine';
 import type { AppState } from './state';
 import { exportBasename, morphSpec, paramsSnapshot } from './state';
 
-export function wireExports(opts: { state: AppState; engine: Engine }): void {
-  const { state, engine } = opts;
+export function wireExports(opts: {
+  state: AppState;
+  engine: Engine;
+  /** Fired when the export chip tray opens — close Forma/Margine. */
+  onOpen?: () => void;
+}): { close: () => void } {
+  const { state, engine, onOpen } = opts;
   const statusEl = $('stage-status');
   const toggle = $('download-toggle') as HTMLButtonElement;
   const exportsEl = $('exports');
@@ -19,7 +24,9 @@ export function wireExports(opts: { state: AppState; engine: Engine }): void {
   };
 
   toggle.addEventListener('click', () => {
-    setOpen(exportsEl.hidden);
+    const opening = exportsEl.hidden;
+    setOpen(opening);
+    if (opening) onOpen?.();
   });
 
   $('png').addEventListener('click', () => {
@@ -122,4 +129,6 @@ export function wireExports(opts: { state: AppState; engine: Engine }): void {
         btn.textContent = label;
       });
   });
+
+  return { close: () => setOpen(false) };
 }

@@ -717,6 +717,24 @@ body.about-open{
     -webkit-overflow-scrolling:touch;
   }
 
+  /* Toggle row first; chip trays full-width below (no display:contents interleave). */
+  .dock-morph{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:var(--gap);
+  }
+  .dock-morph #reshuffle{order:0}
+  .dock-morph #shapes-toggle{order:1}
+  .dock-morph #margins-toggle{order:2}
+  .dock-morph .morph-chips:not([hidden]){
+    display:flex;
+    order:3;
+    flex:1 1 100%;
+    width:100%;
+    max-width:100%;
+  }
+
   /* Same row as desktop: crescita left, download right. */
   .dock-actions{
     flex-direction:row;
@@ -738,10 +756,24 @@ body.about-open{
     justify-content:flex-end;
   }
   .download-cluster{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    align-items:center;
+    gap:var(--gap);
     width:auto;
   }
   .download-cluster.is-fixed{
     width:auto;
+  }
+  .download-btn{order:1}
+  .export-chips:not([hidden]){
+    display:flex;
+    flex:1 1 100%;
+    width:100%;
+    max-width:100%;
+    justify-content:flex-end;
+    order:0;
   }
   .export-chips:not([hidden]) .chip{
     flex:none;
