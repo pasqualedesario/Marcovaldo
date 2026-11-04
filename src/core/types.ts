@@ -21,11 +21,15 @@ export type BotanicalParams = {
   tracking: number;
 };
 
+export type CaretMetric = { x: number; y: number; h: number };
+
 export type FitResult = {
   lamina: Contours;
   fontSize: number;
-  caret: { x: number; y: number; h: number };
+  caret: CaretMetric;
   /** Stage X for each character boundary 0…text.length (selection + caret). */
   caretStops: number[];
+  /** Full caret geometry (multi-line Y/H); parallel to caretStops. */
+  caretMetrics: CaretMetric[];
   pointCount: number;
 };

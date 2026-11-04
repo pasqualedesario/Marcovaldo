@@ -12,6 +12,10 @@ export function $input(id: string): HTMLInputElement {
   return $(id) as HTMLInputElement;
 }
 
+export function $textarea(id: string): HTMLTextAreaElement {
+  return $(id) as HTMLTextAreaElement;
+}
+
 export function $canvas(id: string): HTMLCanvasElement {
   return $(id) as HTMLCanvasElement;
 }

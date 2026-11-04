@@ -1,5 +1,5 @@
 import { contoursToSvgD } from '../core/path/ops';
-import { buildOpenSpecimen, paintFingerprint } from '../core/pipeline';
+import { buildOpenSpecimen, paintFingerprint, splitTextLines } from '../core/pipeline';
 import { applySelOverlay, createSelLayer, SVG_NS } from '../preview/selection';
 import { isMobile, MOBILE_MQ } from '../lib/device';
 import { createFrameScheduler, yieldToMain } from '../lib/schedule';
@@ -40,9 +40,7 @@ type BlockModel = {
   fingerprint: string;
 };
 
-function splitLines(text: string): string[] {
-  return text.length ? text.split('\n') : [''];
-}
+const splitLines = splitTextLines;
 
 function absoluteIndex(lines: readonly string[], li: number, local: number): number {
   let cursor = 0;
@@ -336,7 +334,16 @@ export function mountSpecimens(
         onSelection: () => paintBlockSelection(block, state),
         onInput: () => {
           if (input.readOnly) return;
-          const next = input.value;
+          let next = input.value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+          if (next !== input.value) {
+            const sel = input.selectionStart ?? next.length;
+            input.value = next;
+            try {
+              input.setSelectionRange(sel, sel);
+            } catch {
+              /* ignore */
+            }
+          }
           const partsBefore = splitLines(block.text);
           const partsAfter = splitLines(next);
           block.text = next;

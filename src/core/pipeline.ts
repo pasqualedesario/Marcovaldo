@@ -1,4 +1,4 @@
-import type { BotanicalParams, Contours, FitResult } from './types';
+import type { BotanicalParams, CaretMetric, Contours, FitResult } from './types';
 import { boundsOf, countPoints, flattenPath, transformContours } from './path/ops';
 import {
   applyMorphology,
@@ -10,6 +10,12 @@ import { textToPath, type LoadedFont, type TextLayout } from '../font/load';
 import { cacheGet, cacheSet } from './deformCache';
 import { PT_TO_PX, trackingEm } from '../lib/math';
 import { FLATTEN as FLATTEN_STEPS } from '../export/outlineDensity';
+
+/** Split on CR/LF; trailing newline yields a final empty line. */
+export function splitTextLines(text: string): string[] {
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  return normalized.length ? normalized.split('\n') : [''];
+}
 
 export type SpecimenInput = {
   font: LoadedFont;
@@ -147,51 +153,126 @@ function mapStops(raw: readonly number[], x0: number, width: number): number[] {
   return raw.map((x) => x0 + (x / total) * width);
 }
 
-/** Reuse glyph layout across growth-only frames (play scrub). */
-let stageLayoutKey = '';
-let stageLayout: TextLayout | null = null;
+type StageLinePack = {
+  text: string;
+  deformed: Contours;
+  /** Caret stops in local line space (origin at line bounds x1). */
+  stops: number[];
+  bw: number;
+  bh: number;
+};
 
-/** Stage preview: deform once, then affine-fit. */
+/** Stage preview: deform each line, stack on leading, then affine-fit. */
 export function buildSpecimen(input: SpecimenInput): FitResult | null {
   const { font, text, params, morph, offset, width: W, height: H } = input;
   if (!text) return null;
 
   const fontSize = specimenFontSize(params.scale);
-  const layoutKey = `${font.name}|${text}|${fontSize.toFixed(2)}|${params.tracking}|${params.scale}`;
-  let layout: TextLayout;
-  if (layoutKey === stageLayoutKey && stageLayout) {
-    layout = stageLayout;
-  } else {
-    layout = textToPath(font.face, text, fontSize, trackingEm(params.tracking));
-    stageLayoutKey = layoutKey;
-    stageLayout = layout;
+  const tracking = trackingEm(params.tracking);
+  const lines = splitTextLines(text);
+  const pack: StageLinePack[] = [];
+
+  for (const lineText of lines) {
+    if (!lineText) {
+      pack.push({ text: '', deformed: [], stops: [0], bw: fontSize * 0.35, bh: fontSize });
+      continue;
+    }
+    const layout = textToPath(font.face, lineText, fontSize, tracking);
+    const deformed = deformText(font, lineText, params, morph, offset, fontSize, layout, {
+      chaikinPasses: stageChaikin
+    });
+    if (!deformed?.length) {
+      const adv =
+        layout.advanceUnits * (fontSize / (font.face.unitsPerEm || 1000));
+      const bw = Math.max(fontSize * 0.35, adv);
+      pack.push({
+        text: lineText,
+        deformed: [],
+        stops: mapStops(layout.caretStops, 0, Math.max(1, bw)),
+        bw,
+        bh: fontSize
+      });
+      continue;
+    }
+    const b = boundsOf(deformed);
+    const bw = Math.max(1, b.x2 - b.x1);
+    const bh = Math.max(1, b.y2 - b.y1);
+    pack.push({
+      text: lineText,
+      deformed: transformContours(deformed, 1, -b.x1, -b.y1),
+      stops: mapStops(layout.caretStops, 0, bw),
+      bw,
+      bh
+    });
   }
 
-  const deformed = deformText(font, text, params, morph, offset, fontSize, layout, {
-    chaikinPasses: stageChaikin
-  });
-  if (!deformed?.length) return null;
+  if (!pack.length) return null;
+  if (!pack.some((l) => l.deformed.length) && pack.some((l) => l.text)) return null;
 
-  const b = boundsOf(deformed);
+  const leading = fontSize * SPECIMEN_LEADING;
+  const lineHeights = pack.map((l) => Math.max(l.bh, leading * 0.85));
+  const lineYs: number[] = [];
+  for (let i = 0; i < pack.length; i++) {
+    lineYs.push(i === 0 ? 0 : lineYs[i - 1]! + leading);
+  }
+  const stackW = Math.max(1, ...pack.map((l) => l.bw));
+  const stackH =
+    pack.length === 0 ? fontSize : lineYs[pack.length - 1]! + lineHeights[pack.length - 1]!;
+
+  let combined: Contours = [];
+  for (let i = 0; i < pack.length; i++) {
+    const line = pack[i]!;
+    if (!line.deformed.length) continue;
+    combined = combined.concat(
+      transformContours(line.deformed, 1, (stackW - line.bw) * 0.5, lineYs[i]!)
+    );
+  }
+
+  const b = combined.length
+    ? boundsOf(combined)
+    : { x1: 0, y1: 0, x2: stackW, y2: Math.max(stackH, fontSize) };
   const bw = Math.max(1, b.x2 - b.x1);
   const bh = Math.max(1, b.y2 - b.y1);
   const pad = Math.min(W, H) * 0.08;
   const s = Math.min((W - pad * 2) / bw, (H - pad * 2) / bh, 1);
   const tx = (W - bw * s) * 0.5 - b.x1 * s;
   const ty = (H - bh * s) * 0.5 - b.y1 * s;
-  const fitted = transformContours(deformed, s, tx, ty);
-  const gap = Math.max(6, fontSize * s * 0.045);
-  const caretStops = mapStops(layout.caretStops, b.x1 * s + tx, bw * s);
+  const fitted = combined.length ? transformContours(combined, s, tx, ty) : [];
+
+  const caretMetrics: CaretMetric[] = [];
+  let li = 0;
+  let local = 0;
+  for (let i = 0; i <= text.length; i++) {
+    const line = pack[Math.min(li, pack.length - 1)]!;
+    const xOff = (stackW - line.bw) * 0.5;
+    const localX = line.stops[Math.min(local, line.stops.length - 1)] ?? 0;
+    caretMetrics.push({
+      x: (xOff + localX - b.x1) * s + tx,
+      y: (lineYs[Math.min(li, lineYs.length - 1)]! - b.y1) * s + ty,
+      h: lineHeights[Math.min(li, lineHeights.length - 1)]! * s
+    });
+    if (i >= text.length) break;
+    if (text[i] === '\n') {
+      li++;
+      local = 0;
+    } else {
+      local++;
+    }
+  }
+
+  const caretStops = caretMetrics.map((m) => m.x);
+  const last = caretMetrics[caretMetrics.length - 1] ?? {
+    x: W * 0.5,
+    y: (H - fontSize * s) * 0.5,
+    h: fontSize * s
+  };
 
   return {
     lamina: fitted,
     fontSize: fontSize * s,
-    caret: {
-      x: caretStops[text.length] ?? (b.x1 * s + tx + bw * s + gap),
-      y: b.y1 * s + ty,
-      h: bh * s
-    },
+    caret: last,
     caretStops,
+    caretMetrics,
     pointCount: countPoints(fitted)
   };
 }

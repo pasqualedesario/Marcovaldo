@@ -7,9 +7,9 @@ import {
   type LeafShape
 } from '../core/modules/morphology';
 import { loadFontFromUrl, type LoadedFont } from '../font/load';
-import { isMobile } from '../lib/device';
+import { isMobile, MOBILE_MQ } from '../lib/device';
 import { createDebouncedRaf } from '../lib/schedule';
-import { $, $canvas, $input, $svg, setRangePct } from '../lib/dom';
+import { $, $canvas, $input, $svg, $textarea, setRangePct } from '../lib/dom';
 import { clamp, TRACKING_MAX } from '../lib/math';
 import { setMobilePreview } from '../core/pipeline';
 import { bindTextEdit, setCollapsedRange } from '../lib/textEdit';
@@ -60,7 +60,7 @@ function wireMorphUi(opts: {
   scaleEl: HTMLInputElement;
   trackingEl: HTMLInputElement;
   trackingValEl: HTMLElement;
-  textEl: HTMLInputElement;
+  textEl: HTMLTextAreaElement;
   onPlayingChange?: (playing: boolean) => void;
 }): MorphUi {
   const {
@@ -267,20 +267,33 @@ function wireMorphUi(opts: {
 function wireTextStage(opts: {
   state: AppState;
   engine: Engine;
-  textEl: HTMLInputElement;
+  textEl: HTMLTextAreaElement;
   caret: HTMLElement;
 }): void {
   const { state, engine, textEl, caret } = opts;
 
+  const syncText = () => {
+    // Textarea may emit \r\n on some platforms — keep a single \n for layout.
+    const next = textEl.value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    if (next !== textEl.value) {
+      const sel = textEl.selectionStart ?? next.length;
+      textEl.value = next;
+      try {
+        textEl.setSelectionRange(sel, sel);
+      } catch {
+        /* ignore */
+      }
+    }
+    state.text = next;
+    engine.requestDraw();
+  };
+
   bindTextEdit(textEl, {
-    indexAtPointer: (x) => engine.indexAtX(x),
+    indexAtPointer: (x, y) => engine.indexAtPointer(x, y),
     onSelection: () => {
       engine.setSelection(textEl.selectionStart ?? 0, textEl.selectionEnd ?? 0);
     },
-    onInput: () => {
-      state.text = textEl.value;
-      engine.requestDraw();
-    }
+    onInput: syncText
   });
   textEl.addEventListener('blur', () => {
     caret.hidden = true;
@@ -295,7 +308,7 @@ export function mountApp(state: AppState): void {
   setMobilePreview(mobile);
 
   const stage = $('stage');
-  const textEl = $input('text');
+  const textEl = $textarea('text');
   const caret = $('caret');
   const shapesEl = $('shapes');
   const marginsEl = $('margins');
@@ -471,16 +484,69 @@ export function mountApp(state: AppState): void {
   });
 
   new ResizeObserver(createDebouncedRaf(() => engine.requestDraw())).observe(stage);
-  // Sticky pins jam export chips into one fixed row next to Lang on phones.
-  if (!mobile) {
-    mountDownloadPin({
-      cluster: $('download-cluster'),
-      toggle: $('download-toggle'),
-      anchor: $('download-anchor'),
-      land: $('download-land')
+
+  const downloadCluster = $('download-cluster');
+  const downloadAnchor = $('download-anchor');
+  const downloadLand = $('download-land');
+  const topbarLeft = $('topbar-left');
+  const topbarCenter = $('topbar-center');
+  const topbarRight = $('topbar-right');
+  const dockMetrics = $('dock-metrics');
+  const creditsCenter = $('credits-center');
+  const langLand = $('lang-land');
+  const langBtn = $('lang');
+  const faceChipsEl = $('face-chips');
+  const scaleField = $('scale-field');
+  const trackingField = $('tracking-field');
+  const aboutOpen = $('about-open');
+  let unpinDownload = () => {};
+  let unpinLang = () => {};
+
+  const exportsEl = $('exports');
+  const downloadToggle = $('download-toggle');
+
+  /**
+   * Desktop: face · brand · Scala/Tracking; Download dock + sticky; Lang/About footer.
+   * Mobile: Lang · brand · Download (vertical tray); Growth + face/Scala/Tracking; About footer.
+   */
+  const placeChrome = () => {
+    unpinDownload();
+    unpinLang();
+    unpinDownload = () => {};
+    unpinLang = () => {};
+    exportsEl.hidden = true;
+    downloadToggle.setAttribute('aria-expanded', 'false');
+    if (exportsEl.parentElement !== downloadCluster) {
+      downloadCluster.insertBefore(exportsEl, downloadToggle);
+    }
+    if (isMobile()) {
+      topbarLeft.append(langBtn);
+      topbarCenter.append(brandEl);
+      topbarRight.append(downloadCluster);
+      dockMetrics.hidden = false;
+      dockMetrics.append(faceChipsEl, scaleField, trackingField);
+      creditsCenter.append(aboutOpen);
+      downloadLand.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    topbarLeft.append(faceChipsEl);
+    topbarCenter.append(brandEl);
+    topbarRight.append(scaleField, trackingField);
+    dockMetrics.hidden = true;
+    downloadAnchor.append(downloadCluster);
+    langLand.append(langBtn);
+    creditsCenter.append(aboutOpen);
+    downloadLand.setAttribute('aria-hidden', 'true');
+    unpinDownload = mountDownloadPin({
+      cluster: downloadCluster,
+      toggle: downloadToggle,
+      anchor: downloadAnchor,
+      land: downloadLand
     });
-    mountLangPin($('lang'), $('lang-land'));
-  }
+    unpinLang = mountLangPin(langBtn, langLand);
+  };
+  placeChrome();
+  window.matchMedia(MOBILE_MQ).addEventListener('change', placeChrome);
 
   morphUi.syncSliders();
   paintBrand(brandEl, state);

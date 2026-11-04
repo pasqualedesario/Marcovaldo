@@ -69,25 +69,28 @@ export function mountMotion(root: HTMLElement = document.querySelector('.app')!)
   };
 }
 
-/** About opens rising from below. */
+/**
+ * About sheet motion — rises from below (footer About on mobile + desktop).
+ */
 export function animateAboutOpen(sheet: HTMLElement, panel: HTMLElement): Promise<void> {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     gsap.set(sheet, { clearProps: 'transform', autoAlpha: 1, yPercent: 0 });
     gsap.set(panel, { clearProps: 'all', autoAlpha: 1 });
     return Promise.resolve();
   }
+  const mobile = isMobile();
   gsap.killTweensOf([sheet, panel]);
   gsap.set(sheet, { autoAlpha: 1, yPercent: 100 });
-  gsap.set(panel, { autoAlpha: 0, y: 24 });
+  gsap.set(panel, { autoAlpha: 0, y: mobile ? 36 : 24 });
   return new Promise((resolve) => {
     const tl = gsap.timeline({
-      defaults: { ease: 'power3.out' },
+      defaults: { ease: mobile ? 'power2.out' : 'power3.out' },
       onComplete: resolve
     });
-    tl.to(sheet, { yPercent: 0, duration: 0.85 }, 0).to(
+    tl.to(sheet, { yPercent: 0, duration: mobile ? 0.7 : 0.85 }, 0).to(
       panel,
-      { autoAlpha: 1, y: 0, duration: 0.7 },
-      0.2
+      { autoAlpha: 1, y: 0, duration: mobile ? 0.55 : 0.7 },
+      mobile ? 0.12 : 0.2
     );
   });
 }
@@ -96,15 +99,16 @@ export function animateAboutClose(sheet: HTMLElement, panel: HTMLElement): Promi
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     return Promise.resolve();
   }
+  const mobile = isMobile();
   gsap.killTweensOf([sheet, panel]);
   return new Promise((resolve) => {
     const tl = gsap.timeline({
-      defaults: { ease: 'power3.inOut' },
+      defaults: { ease: mobile ? 'power2.in' : 'power3.inOut' },
       onComplete: resolve
     });
-    tl.to(panel, { autoAlpha: 0, y: 16, duration: 0.35 }, 0).to(
+    tl.to(panel, { autoAlpha: 0, y: mobile ? 28 : 16, duration: mobile ? 0.28 : 0.35 }, 0).to(
       sheet,
-      { yPercent: 100, duration: 0.7 },
+      { yPercent: 100, duration: mobile ? 0.55 : 0.7 },
       0.05
     );
   });

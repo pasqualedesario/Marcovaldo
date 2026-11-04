@@ -64,19 +64,21 @@
 <div class="app">
   <div class="workspace" id="workspace">
     <div class="topbar">
-      <div class="topbar-left">
+      <div class="topbar-left" id="topbar-left">
         <div class="chips face-chips" id="face-chips" role="group" aria-label="Carattere">
           <button type="button" class="chip" id="face-sans" data-face="sans" aria-pressed="true" data-i18n="faceSans">Sans</button>
           <button type="button" class="chip" id="face-serif" data-face="serif" aria-pressed="false" data-i18n="faceSerif">Serif</button>
         </div>
       </div>
-      <button type="button" class="topbar-center brand" id="brand" aria-label="Marcovaldo">Marcovaldo</button>
-      <div class="topbar-right">
-        <label class="field scale-field" title="Scala">
+      <div class="topbar-center" id="topbar-center">
+        <button type="button" class="brand" id="brand" aria-label="Marcovaldo">Marcovaldo</button>
+      </div>
+      <div class="topbar-right" id="topbar-right">
+        <label class="field scale-field" title="Scala" id="scale-field">
           <span data-i18n="scale">Scala</span> <span class="val" id="sizept" aria-live="polite">—</span>
           <input id="scale" class="ios" type="range" min="0" max="100" value="88" aria-label="Scala">
         </label>
-        <label class="field tracking-field" title="Tracking">
+        <label class="field tracking-field" title="Tracking" id="tracking-field">
           <span data-i18n="tracking">Tracking</span> <span class="val" id="trackingval" aria-live="polite">50</span>
           <input id="tracking" class="ios" type="range" min="0" max="250" value="50" aria-label="Tracking">
         </label>
@@ -88,7 +90,7 @@
       <canvas class="raster" id="raster" aria-hidden="true"></canvas>
       <p class="stage-status" id="stage-status" hidden></p>
       <div class="specimen-caret" id="caret" hidden></div>
-      <input class="specimen-input" id="text" type="text" value="Ovata" maxlength="32" autocomplete="off" spellcheck="false" aria-label="Testo specimen" autofocus>
+      <textarea class="specimen-input" id="text" rows="3" maxlength="96" autocomplete="off" spellcheck="false" aria-label="Testo specimen" autofocus>Ovata</textarea>
     </div>
 
     <div class="dock" id="dock">
@@ -107,6 +109,7 @@
           </label>
           <button type="button" class="chip chip-rect" id="growth-play" aria-pressed="false" title="Play crescita">▶</button>
         </div>
+        <div class="dock-metrics" id="dock-metrics" hidden></div>
         <div class="dock-exports" id="dock-exports">
           <span class="download-anchor" id="download-anchor">
             <div class="download-cluster" id="download-cluster">
@@ -133,7 +136,9 @@
     <span class="lang-land" id="lang-land">
       <button class="chip lang-btn" id="lang" type="button" aria-label="Language">English</button>
     </span>
-    <button type="button" class="about-mark" id="about-open" aria-expanded="false" aria-controls="about-sheet">About</button>
+    <span class="credits-center" id="credits-center">
+      <button type="button" class="about-mark" id="about-open" aria-expanded="false" aria-controls="about-sheet">About</button>
+    </span>
     <span class="download-land" id="download-land" aria-hidden="true"></span>
   </footer>
 </div>
@@ -149,27 +154,23 @@
     </div>
 
     <footer class="about-credits">
-      <div class="about-credits-col">
-        <p class="credits-note">
-          <span data-i18n="creditsFrom">Estratti da:</span><br>
-          <span data-i18n="creditsAuthor">Calvino, I. (1963).</span>
-          <em data-i18n="creditsTitle">Marcovaldo ovvero Le stagioni in città</em>.
-          <span data-i18n="creditsPub">Einaudi.</span>
-        </p>
-        <p class="credits-type">
-          <span data-i18n="creditsType">Composto in:</span><br>
-          <a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Modern</a><span class="credits-plus" aria-hidden="true"> + </span><a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Serif</a>
-        </p>
-      </div>
-      <div class="about-credits-col">
-        <p class="credits-ref">
-          <a class="credits-link" id="ref-link" href="https://www.are.na/pasquale-de-sario/p-marcovaldo" target="_blank" rel="noopener noreferrer" data-i18n="creditsRefLink">Are.na</a>
-        </p>
-        <p class="credits-by">
-          <span data-i18n="creditsBy">Design + Development:</span><br>
-          <a class="credits-link" id="site-link" href="https://pasqualedesario.eu/#it" target="_blank" rel="noopener noreferrer">Pasquale de Sario</a> (2026)
-        </p>
-      </div>
+      <p class="credits-note">
+        <span data-i18n="creditsFrom">Estratti da:</span><br>
+        <span data-i18n="creditsAuthor">Calvino, I. (1963).</span><br>
+        <em data-i18n="creditsTitle">Marcovaldo ovvero Le stagioni in città</em>.<br>
+        <span data-i18n="creditsPub">Einaudi.</span>
+      </p>
+      <p class="credits-type">
+        <span data-i18n="creditsType">Composto in:</span><br>
+        <a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Modern</a><span class="credits-plus" aria-hidden="true"> + </span><a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Serif</a>
+      </p>
+      <p class="credits-ref">
+        <a class="credits-link" id="ref-link" href="https://www.are.na/pasquale-de-sario/p-marcovaldo" target="_blank" rel="noopener noreferrer" data-i18n="creditsRefLink">Are.na</a>
+      </p>
+      <p class="credits-by">
+        <span data-i18n="creditsBy">Design + Development:</span><br>
+        <a class="credits-link" id="site-link" href="https://pasqualedesario.eu/#it" target="_blank" rel="noopener noreferrer">Pasquale de Sario</a> (2026)
+      </p>
     </footer>
   </div>
 </div>

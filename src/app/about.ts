@@ -1,3 +1,4 @@
+import gsap from 'gsap';
 import { t } from '../i18n';
 import { BRAND_TEXT, paintMorphMark } from './brand';
 import { animateAboutClose, animateAboutOpen } from './motion';
@@ -37,7 +38,7 @@ function focusables(root: HTMLElement): HTMLElement[] {
   ].filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
 }
 
-/** About sheet — slides up from below. Close via Escape, wordmark, or topbar brand. */
+/** About sheet — slides up from below. Close via Escape, wordmark, or brand. */
 export function mountAbout(opts: {
   state: AppState;
   openBtn: HTMLElement;
@@ -103,6 +104,8 @@ export function mountAbout(opts: {
     busy = true;
     lastFocus = (document.activeElement as HTMLElement | null) ?? openBtn;
     refreshMarks();
+    // Park below the viewport before first paint (rises from footer About).
+    gsap.set(sheet, { yPercent: 100, autoAlpha: 1 });
     sheet.hidden = false;
     sheet.setAttribute('aria-hidden', 'false');
     openBtn.setAttribute('aria-expanded', 'true');
