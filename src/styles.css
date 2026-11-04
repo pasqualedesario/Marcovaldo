@@ -733,12 +733,20 @@ body.about-open{
     align-items:center;
     gap:var(--gap);
   }
+  /* Casuale · Forma · [forme] · Margine · [margini] — Margine always after open shapes. */
   .dock-morph #reshuffle{order:0}
   .dock-morph #shapes-toggle{order:1}
-  .dock-morph #margins-toggle{order:2}
-  .dock-morph .morph-chips:not([hidden]){
+  .dock-morph #shapes:not([hidden]){
     display:flex;
-    order:3;
+    order:2;
+    flex:1 1 100%;
+    width:100%;
+    max-width:100%;
+  }
+  .dock-morph #margins-toggle{order:3}
+  .dock-morph #margins:not([hidden]){
+    display:flex;
+    order:4;
     flex:1 1 100%;
     width:100%;
     max-width:100%;
