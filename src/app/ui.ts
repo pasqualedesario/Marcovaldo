@@ -494,13 +494,16 @@ export function mountApp(state: AppState): void {
   });
 
   new ResizeObserver(createDebouncedRaf(() => engine.requestDraw())).observe(stage);
-  mountDownloadPin({
-    cluster: $('download-cluster'),
-    toggle: $('download-toggle'),
-    anchor: $('download-anchor'),
-    land: $('download-land')
-  });
-  mountLangPin($('lang'), $('lang-land'));
+  // Sticky pins jam export chips into one fixed row next to Lang on phones.
+  if (!mobile) {
+    mountDownloadPin({
+      cluster: $('download-cluster'),
+      toggle: $('download-toggle'),
+      anchor: $('download-anchor'),
+      land: $('download-land')
+    });
+    mountLangPin($('lang'), $('lang-land'));
+  }
 
   morphUi.syncSliders();
   paintBrand(brandEl, state);

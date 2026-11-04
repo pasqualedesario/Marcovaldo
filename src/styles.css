@@ -735,10 +735,10 @@ body.about-open{
     max-width:100%;
   }
 
-  /* Same row as desktop: crescita left, download right. */
+  /* Crescita on its row; Download tray full-width below (no sticky pin on mobile). */
   .dock-actions{
     flex-direction:row;
-    flex-wrap:nowrap;
+    flex-wrap:wrap;
     align-items:center;
     justify-content:space-between;
     gap:var(--pad);
@@ -746,25 +746,25 @@ body.about-open{
   .params{
     flex:1 1 auto;
     width:auto;
-    max-width:min(280px, calc(100% - 5.5rem));
+    max-width:100%;
     min-width:0;
   }
   .dock-exports{
-    margin-left:auto;
-    width:auto;
-    flex:none;
+    flex:1 1 100%;
+    width:100%;
+    margin-left:0;
     justify-content:flex-end;
   }
-  .download-cluster{
+  .download-cluster,
+  .download-cluster.is-fixed{
+    position:static;
     display:flex;
     flex-wrap:wrap;
     justify-content:flex-end;
     align-items:center;
     gap:var(--gap);
-    width:auto;
-  }
-  .download-cluster.is-fixed{
-    width:auto;
+    width:100%;
+    max-width:100%;
   }
   .download-btn{order:1}
   .export-chips:not([hidden]){
@@ -773,10 +773,15 @@ body.about-open{
     width:100%;
     max-width:100%;
     justify-content:flex-end;
+    flex-wrap:wrap;
     order:0;
   }
   .export-chips:not([hidden]) .chip{
     flex:none;
+  }
+  .site-credits .download-land{
+    /* Slot only — cluster stays in the dock on mobile. */
+    min-height:0;
   }
 
   .specimen-block-input.is-readonly-mobile,
