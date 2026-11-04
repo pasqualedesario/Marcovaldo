@@ -94,10 +94,9 @@ function wireMorphUi(opts: {
     b.addEventListener('click', () => {
       onPick();
       stage.classList.add('is-morphing');
-      window.setTimeout(() => {
-        refresh();
-        stage.classList.remove('is-morphing');
-      }, 160);
+      // Paint immediately — artificial delay made morph feel slower than it is.
+      refresh();
+      window.setTimeout(() => stage.classList.remove('is-morphing'), 120);
     });
   };
 
@@ -322,7 +321,8 @@ export function mountApp(state: AppState): void {
   const specimens = mountSpecimens($('specimens'), state, {
     getPaintGrowth: paintGrowth
   });
-  const refreshSpecimens = createDebouncedRaf(() => specimens.refresh(), 140);
+  // Specimens are heavier than the stage — debounce a bit so rapid chip picks coalesce.
+  const refreshSpecimens = createDebouncedRaf(() => specimens.refresh(), 80);
   const refreshBrand = createDebouncedRaf(() => {
     paintBrand(brandEl, state, paintGrowth());
     about.refreshMarks();

@@ -25,9 +25,15 @@ const MIN_SIZE_PT = 5;
 /** Absolute ceiling — may overflow the stage (clipped by viewport). */
 const MAX_SIZE_PT = 500;
 const SPECIMEN_LEADING = 1.1;
-const OPEN_QUALITY_PX = 96;
-/** Stage / open-specimen polish (export uses 1). */
+/**
+ * Open-specimen supersample target (CSS px). Cap quality — uncapped
+ * OPEN_QUALITY/size made 8pt lines morph at ~9× and dominated gallery cost.
+ */
+const OPEN_QUALITY_PX = 48;
+const OPEN_QUALITY_MAX = 1.5;
+/** Stage polish. Gallery open-specimens use OPEN_CHAIKIN (cheaper). */
 const PREVIEW_CHAIKIN = 2;
+const OPEN_CHAIKIN = 1;
 
 export function specimenFontSize(scale: number): number {
   const minPx = MIN_SIZE_PT * PT_TO_PX;
@@ -214,7 +220,7 @@ export function buildOpenSpecimen(input: {
   const wantCaret = input.caret !== false;
   if (sizePx <= 0) return null;
 
-  const quality = Math.max(1, OPEN_QUALITY_PX / sizePx);
+  const quality = Math.min(OPEN_QUALITY_MAX, Math.max(1, OPEN_QUALITY_PX / sizePx));
   const fontSize = sizePx * quality;
   const { height: lineH, baseline } = lineBox(font.face, fontSize);
   const padX = fontSize * 0.08;
@@ -235,7 +241,7 @@ export function buildOpenSpecimen(input: {
 
   const layout = textToPath(font.face, text, fontSize);
   const deformed = deformText(font, text, params, morph, offset, fontSize, layout, {
-    chaikinPasses: PREVIEW_CHAIKIN
+    chaikinPasses: OPEN_CHAIKIN
   });
   if (!deformed?.length) return null;
 

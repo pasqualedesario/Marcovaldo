@@ -374,13 +374,26 @@ export function mountSpecimens(
     syncMobileReadonly(block);
     for (let i = 0; i < block.lines.length; i++) {
       paintLineVisual(block.lines[i]!, block, st, growth, force);
+      // Yield often on long body blocks so the stage stays interactive.
       if ((i & 1) === 1) await yieldToMain();
     }
   };
 
+  const blockVisible = (block: BlockModel) => {
+    const r = block.article.getBoundingClientRect();
+    const vh = window.innerHeight || 1;
+    return r.bottom > -80 && r.top < vh + 80;
+  };
+
   const paintBatched = async () => {
     const token = ++paintToken;
-    for (const block of blocks) {
+    // Visible blocks first — below-fold Calvino paragraphs can catch up after.
+    const ordered = [...blocks].sort((a, b) => {
+      const av = blockVisible(a) ? 0 : 1;
+      const bv = blockVisible(b) ? 0 : 1;
+      return av - bv;
+    });
+    for (const block of ordered) {
       if (token !== paintToken) return;
       await paintBlock(block, state);
     }
