@@ -1,17 +1,17 @@
 /**
- * Safe export charset — basic Latin present in FOSS Modern ∩ FOSS Serif.
- * (Accented slots in older OTF_CHARSET produced empty/broken glyphs.)
+ * Safe export charset — basic Latin + IT accents + typographic punctuation.
+ * Accents are listed for completeness; FOSS Modern/Serif masters currently omit
+ * Latin diacritics, so export skips missing glyphs via font coverage checks.
  */
 export const VF_CHARSET =
   ' ABCDEFGHIJKLMNOPQRSTUVWXYZ' +
   'abcdefghijklmnopqrstuvwxyz' +
   '0123456789' +
-  '.,;:!?\'"-';
+  '.,;:!?\'"-' +
+  'àèéìòùÀÈÉÌÒÙ' +
+  '‘’“”«»–—…';
 
-/** @deprecated use VF_CHARSET */
-export const OTF_CHARSET = VF_CHARSET;
-
-export function charsetChars(source = OTF_CHARSET): string[] {
+export function charsetChars(source = VF_CHARSET): string[] {
   const out: string[] = [];
   const seen = new Set<number>();
   for (const ch of source) {

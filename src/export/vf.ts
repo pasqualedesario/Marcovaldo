@@ -1,22 +1,16 @@
 import { glyphNameFor, VF_CHARSET } from '../core/charset';
-import {
-  applyMorphologyStable,
-  moduleStamp,
-  type MorphologySpec
-} from '../core/modules/morphology';
-import { flattenPath } from '../core/path/ops';
+import { moduleStamp, type MorphologySpec } from '../core/modules/morphology';
+import { signedArea } from '../core/path/ops';
+import { deformGlyph } from '../core/pipeline';
 import type { Contour, Contours } from '../core/types';
 import { textToPath, type LoadedFont } from '../font/load';
 import { downloadBlob, safeFilename } from '../lib/download';
 import { yieldToMain } from '../lib/schedule';
+import { LETTER_PTS, LEAF_PTS } from './outlineDensity';
 import { resampleClosed, sanitizeContours } from './pathSanitize';
 import { buildGrowVariableTtf, type VfGlyph } from './ttfVf';
 
-export { VF_CHARSET };
-
-const LETTER_PTS = 48;
-const LEAF_PTS = 20;
-const FLATTEN = 8;
+const EXPORT_POLISH = { chaikinPasses: 1 } as const;
 
 export type VfExportProgress = { done: number; total: number; char: string };
 
@@ -43,16 +37,24 @@ function alignMastersWithLetterCount(
   maxC: Contours,
   letterCount: number
 ): { min: Contour[]; max: Contour[] } {
-  const n = Math.min(minC.length, maxC.length);
+  if (minC.length !== maxC.length) {
+    throw new Error(
+      `VF topology mismatch: min has ${minC.length} contours, max has ${maxC.length}`
+    );
+  }
   const min: Contour[] = [];
   const max: Contour[] = [];
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < minC.length; i++) {
     const pts = i < letterCount ? LETTER_PTS : LEAF_PTS;
-    const a = resampleClosed(minC[i]!, pts);
-    const b = resampleClosed(maxC[i]!, pts);
-    // Same start corner → stable gvar deltas (avoid rotating phase).
-    const a0 = syncStart(a, b);
-    min.push(a0);
+    let a = resampleClosed(minC[i]!, pts);
+    let b = resampleClosed(maxC[i]!, pts);
+    if (a.length !== b.length) {
+      throw new Error(`VF point mismatch on contour ${i}: ${a.length} vs ${b.length}`);
+    }
+    // Match winding so interpolation does not bow-tie.
+    if (signedArea(a) * signedArea(b) < 0) a = a.slice().reverse();
+    a = syncStart(a, b);
+    min.push(a);
     max.push(b);
   }
   return { min, max };
@@ -82,28 +84,27 @@ function morphPair(
   morph: MorphologySpec,
   offset: number
 ): { advance: number; letterCount: number; min: Contours; max: Contours } | null {
-  const upm = font.face.unitsPerEm || 1000;
-  const layout = textToPath(font.face, char, upm);
-  const advance = Math.max(1, Math.round(layout.advanceUnits || upm * 0.3));
-  if (char === ' ') return { advance, letterCount: 0, min: [], max: [] };
-  if (!layout.commands.length) return null;
-
-  const flat = flattenPath(layout, FLATTEN);
-  if (!flat.length) return null;
-  const letterCount = flat.length;
-  const seed = `${moduleStamp()}|vf|${morph.shape}|${morph.margin}|${font.name}|${offset}|${char}`;
-
-  const minRaw = applyMorphologyStable(flat, 0, upm, seed, morph);
-  const maxRaw = applyMorphologyStable(flat, 1, upm, seed, morph);
-  // Area filter disabled: tiny leaves at GROW=0 must stay so masters share topology.
-  const min = sanitizeContours(minRaw, 0);
-  const max = sanitizeContours(maxRaw, 0);
-  if (!min.length || !max.length || min.length !== max.length) {
-    const plain = sanitizeContours(flat, 0);
-    const copy = plain.map((c) => c.map((p) => ({ ...p })));
-    return { advance, letterCount: plain.length, min: plain, max: copy };
+  const bare = { growth: 0, scale: 50, tracking: 50 };
+  const full = { growth: 100, scale: 50, tracking: 50 };
+  const minBuilt = deformGlyph(font, char, bare, morph, offset, EXPORT_POLISH);
+  const maxBuilt = deformGlyph(font, char, full, morph, offset, EXPORT_POLISH);
+  if (!minBuilt || !maxBuilt) return null;
+  if (char === ' ') {
+    return { advance: minBuilt.advance, letterCount: 0, min: [], max: [] };
   }
-  return { advance, letterCount, min, max };
+  // Keep tiny leaves at GROW=0 so masters share topology.
+  const min = sanitizeContours(minBuilt.lamina, 0);
+  const max = sanitizeContours(maxBuilt.lamina, 0);
+  if (!min.length || !max.length) return null;
+  if (min.length !== max.length) {
+    throw new Error(`VF ${JSON.stringify(char)}: contour count ${min.length}≠${max.length}`);
+  }
+  return {
+    advance: Math.max(minBuilt.advance, maxBuilt.advance),
+    letterCount: minBuilt.letterCount,
+    min,
+    max
+  };
 }
 
 export type GrowthVfBuildOpts = {
@@ -116,7 +117,7 @@ export type GrowthVfBuildOpts = {
   onProgress?: (p: VfExportProgress) => void;
 };
 
-/** Build single GROW variable TrueType (.ttf) bytes — shape/margin fixed, growth 0→100. */
+/** Build single GROW variable TrueType (.ttf) — shape/margin fixed, growth 0→100. */
 export async function buildGrowthVf(opts: GrowthVfBuildOpts): Promise<{
   filename: string;
   buffer: ArrayBuffer;

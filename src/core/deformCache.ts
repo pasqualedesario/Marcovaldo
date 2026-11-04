@@ -1,7 +1,7 @@
 import type { Contours } from './types';
 
 /** LRU deform cache for stage + specimens + brand. */
-const MAX = 96;
+const MAX = 160;
 const map = new Map<string, Contours>();
 
 export function cacheGet(key: string): Contours | undefined {

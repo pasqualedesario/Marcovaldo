@@ -8,7 +8,7 @@ import {
 } from './catalog';
 const hypot = (dx: number, dy: number) => Math.hypot(dx, dy) || 1;
 
-export type LeafStamp = { x: number; y: number };
+type LeafStamp = { x: number; y: number };
 
 /** Half-width profile along midrib t∈[0,1] before margin. */
 function shapeHalfWidth(shape: LeafShape, t: number, side: number, R: () => number): number {
@@ -120,7 +120,7 @@ function applyMargin(
 
 
 /** Soften polygon edges into irregular organic curves. */
-export function organicContour(pts: Contour, R: () => number, passes = 2): Contour {
+function organicContour(pts: Contour, R: () => number, passes = 2): Contour {
   if (pts.length < 3) return pts;
   let cur = pts;
   const n = cur.length;
@@ -242,7 +242,8 @@ export function buildLaminaStamp(
   widthScale: number,
   gx: number,
   gy: number,
-  R: () => number
+  R: () => number,
+  chaikinPasses = 2
 ): Contours {
   const asym = R() * 2 - 1;
   const group = shapeGroup(shape);
@@ -250,11 +251,13 @@ export function buildLaminaStamp(
 
   const curl = (R() - 0.5) * 1.1;
   const swell = 0.88 + R() * 0.28;
+  const polish = (c: Contour) =>
+    chaikinPasses > 0 ? organicContour(c, R, chaikinPasses) : c;
 
   if (group !== 'compound') {
     let leaf = unitLeaf(shape, margin, steps, R, asym);
     leaf = transformUnit(leaf, stamp.x, stamp.y, len, widthScale, gx, gy, curl, swell);
-    return [organicContour(leaf, R, 3)];
+    return [polish(leaf)];
   }
 
   const leafletShape: LeafShape = 'ovate';
@@ -276,7 +279,7 @@ export function buildLaminaStamp(
       curl + (R() - 0.5) * 0.6,
       swell
     );
-    out.push(organicContour(leaflet, R, 3));
+    out.push(polish(leaflet));
   }
   return out;
 }

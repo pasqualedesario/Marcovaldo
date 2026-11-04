@@ -8,7 +8,7 @@ type Opts = {
 };
 
 /** Sans / Serif as two independent chips. */
-export function mountFaceChips(opts: Opts): void {
+export function mountFaceChips(opts: Opts): { sync: () => void } {
   const { buttons, getFace, onChange } = opts;
 
   const sync = () => {
@@ -31,4 +31,5 @@ export function mountFaceChips(opts: Opts): void {
 
   if (!FACE_IDS.includes(getFace())) onChange(FACE_IDS[0]!);
   sync();
+  return { sync };
 }

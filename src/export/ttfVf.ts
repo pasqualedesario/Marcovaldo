@@ -1,7 +1,9 @@
 /**
  * Minimal TrueType variable font writer — one axis (GROW), two masters.
  * Glyphs are polygonal (all on-curve) so masters share topology via resampling.
+ * `avar` remaps user GROW so mid-axis tracks morphology growthCurve01.
  */
+import { growthCurve01 } from '../core/modules/morphology';
 
 type Pt = { x: number; y: number };
 
@@ -250,15 +252,68 @@ function buildName(names: Record<number, string>): number[] {
   return [...u16(0), ...u16(count), ...u16(stringOffset), ...nameRecords, ...stringData];
 }
 
-/** Pack a delta stream (X or Y) per OpenType gvar run-length encoding. */
+/** STAT v1.1 — GROW axis with Bare (0) and Growth (100) Format-1 values. */
+function buildStatTable(ids: {
+  axisNameId: number;
+  bareNameId: number;
+  growthNameId: number;
+}): number[] {
+  // AxisValue Format 1: format, axisIndex, flags, valueNameID, Fixed value (12 bytes)
+  const bareValue = [
+    ...u16(1),
+    ...u16(0),
+    ...u16(2), // ElidableAxisValueName
+    ...u16(ids.bareNameId),
+    ...fixed16_16(0)
+  ];
+  const growthValue = [
+    ...u16(1),
+    ...u16(0),
+    ...u16(0),
+    ...u16(ids.growthNameId),
+    ...fixed16_16(100)
+  ];
+  const axisRecord = [...tag('GROW'), ...u16(ids.axisNameId), ...u16(0)];
+
+  const headerSize = 20;
+  const axisSize = 8;
+  const designAxesOffset = headerSize;
+  const offsetArrayOffset = designAxesOffset + axisSize;
+  // Offset16s in AxisValueArray are relative to the start of that array (fontTools).
+  const value0Rel = 4;
+  const value1Rel = 4 + 12;
+
+  return [
+    ...u16(1),
+    ...u16(1),
+    ...u16(axisSize),
+    ...u16(1),
+    ...u32(designAxesOffset),
+    ...u16(2),
+    ...u32(offsetArrayOffset),
+    ...u16(ids.bareNameId),
+    ...axisRecord,
+    ...u16(value0Rel),
+    ...u16(value1Rel),
+    ...bareValue,
+    ...growthValue
+  ];
+}
+
+/**
+ * Pack a delta stream (X or Y) per OpenType gvar run-length encoding.
+ * Header low 6 bits = count−1; bits 6–7: 00=int8, 01=int16, 10=zeros, 11=int32.
+ */
 function packDeltaRuns(values: number[]): number[] {
+  const DELTAS_ARE_WORDS = 0x40;
+  const DELTAS_ARE_ZERO = 0x80;
   const out: number[] = [];
   let i = 0;
   while (i < values.length) {
     if (values[i] === 0) {
       let j = i + 1;
       while (j < values.length && values[j] === 0 && j - i < 64) j++;
-      out.push((j - i - 1) & 0x3f);
+      out.push(DELTAS_ARE_ZERO | ((j - i - 1) & 0x3f));
       i = j;
       continue;
     }
@@ -274,10 +329,10 @@ function packDeltaRuns(values: number[]): number[] {
     }
     const count = j - i;
     if (asBytes) {
-      out.push(0x80 | ((count - 1) & 0x3f));
+      out.push((count - 1) & 0x3f);
       for (let k = i; k < j; k++) out.push(values[k]! & 0xff);
     } else {
-      out.push(0xc0 | ((count - 1) & 0x3f));
+      out.push(DELTAS_ARE_WORDS | ((count - 1) & 0x3f));
       for (let k = i; k < j; k++) out.push(...i16(values[k]!));
     }
     i = j;
@@ -308,11 +363,12 @@ export function buildGrowVariableTtf(input: VfFontInput): ArrayBuffer {
   for (const g of glyphs) {
     const minEnc = encodeSimpleGlyph(g.min);
     const maxEnc = encodeSimpleGlyph(g.max);
-    // Prefer min topology; if max differs in count, force min-only (static)
-    let pointsMax = maxEnc.points;
-    if (pointsMax.length !== minEnc.points.length) {
-      pointsMax = minEnc.points.map((p) => ({ ...p }));
+    if (maxEnc.points.length !== minEnc.points.length) {
+      throw new Error(
+        `VF glyph ${g.name}: point count ${minEnc.points.length}≠${maxEnc.points.length}`
+      );
     }
+    const pointsMax = maxEnc.points;
     const pad = Math.round(upm * 0.04);
     const xMin = Math.min(minEnc.xMin, maxEnc.xMin);
     const xMax = Math.max(minEnc.xMax, maxEnc.xMax);
@@ -418,58 +474,57 @@ export function buildGrowVariableTtf(input: VfFontInput): ArrayBuffer {
     ...u16(0) // maxComponentDepth
   ];
 
-  function u8s(s: string): number[] {
-    return [s.charCodeAt(0) || 0, s.charCodeAt(1) || 0, s.charCodeAt(2) || 0, s.charCodeAt(3) || 0];
+  function tag4(s: string): number[] {
+    const b = [0x20, 0x20, 0x20, 0x20];
+    for (let i = 0; i < Math.min(4, s.length); i++) b[i] = s.charCodeAt(i)! & 0xff;
+    return b;
   }
 
-  // OS/2 version 3 = 96 bytes
+  // OS/2 version 3 — exactly 96 bytes (fontTools rejects oversized tables).
+  const panose = [2, 0, 5, 3, 0, 0, 0, 0, 0, 0];
   const os2 = [
-    ...u16(3), // version
-    ...i16(Math.round(upm * 0.8)), // xAvgCharWidth
-    ...u16(400), // usWeightClass
-    ...u16(5), // usWidthClass
-    ...u16(0), // fsType
+    ...u16(3),
+    ...i16(Math.round(upm * 0.5)),
+    ...u16(400),
+    ...u16(5),
+    ...u16(0),
+    // subscript (4) + superscript (4) + strikeout (2) + sFamilyClass (1) = 11×i16
     ...i16(0),
     ...i16(0),
     ...i16(0),
-    ...i16(0), // subscript
     ...i16(0),
     ...i16(0),
     ...i16(0),
-    ...i16(0), // superscript
     ...i16(0),
     ...i16(0),
     ...i16(0),
-    ...i16(0), // strikeout
-    ...i16(0), // sFamilyClass
-    ...u8s('Marc'), // panose (10 bytes) — pad below
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    ...u32(0), // ulUnicodeRange1-4
+    ...i16(0),
+    ...i16(0),
+    ...panose,
     ...u32(0),
     ...u32(0),
     ...u32(0),
-    ...u8s('Marc'), // achVendID
-    ...u16(0x40), // fsSelection REGULAR
-    ...u16(0x20), // usFirstCharIndex
-    ...u16(0x7e), // usLastCharIndex
-    ...i16(input.ascender), // sTypoAscender
-    ...i16(input.descender), // sTypoDescender
-    ...i16(0), // sTypoLineGap
-    ...u16(input.ascender), // usWinAscent
-    ...u16(Math.abs(input.descender)), // usWinDescent
-    ...u32(0), // ulCodePageRange1
-    ...u32(0), // ulCodePageRange2
-    ...i16(0), // sxHeight
-    ...i16(0), // sCapHeight
-    ...u16(0), // usDefaultChar
-    ...u16(0x20), // usBreakChar
-    ...u16(1) // usMaxContext
+    ...u32(0),
+    ...tag4('Marc'),
+    ...u16(0x40),
+    ...u16(0x20),
+    ...u16(0x7e),
+    ...i16(input.ascender),
+    ...i16(input.descender),
+    ...i16(0),
+    ...u16(Math.max(0, input.ascender)),
+    ...u16(Math.abs(input.descender)),
+    ...u32(1), // Latin-1 code page
+    ...u32(0),
+    ...i16(0),
+    ...i16(0),
+    ...u16(0),
+    ...u16(0x20),
+    ...u16(1)
   ];
+  if (os2.length !== 96) {
+    throw new Error(`OS/2 must be 96 bytes, got ${os2.length}`);
+  }
 
   const post = [
     ...fixed16_16(3),
@@ -486,6 +541,11 @@ export function buildGrowVariableTtf(input: VfFontInput): ArrayBuffer {
   const unicodes = glyphs.map((g) => g.unicode);
   const cmap = buildCmap(unicodes);
 
+  // Name IDs: 25 = Variations PostScript Name Prefix; axis/instance names ≥256.
+  const psPrefixId = 25;
+  const axisNameId = 256;
+  const bareNameId = 257;
+  const growthNameId = 258;
   const name = buildName({
     1: input.familyName,
     2: input.styleName,
@@ -498,27 +558,55 @@ export function buildGrowVariableTtf(input: VfFontInput): ArrayBuffer {
     14: 'https://opensource.org/licenses/MIT',
     16: input.familyName,
     17: input.styleName,
-    25: 'GROW'
+    [psPrefixId]: input.postScriptName,
+    [axisNameId]: 'GROW',
+    [bareNameId]: 'Bare',
+    [growthNameId]: 'Growth'
   });
 
-  // fvar — one axis GROW 0..100, default 0
-  // VariationAxisRecord: tag, min, default, max, flags, axisNameID
-  const axisNameId = 25;
+  // fvar — GROW 0..100 + named instances Bare / Growth (Primavera-style)
+  const axisCountFvar = 1;
+  const axisSize = 20;
+  const instanceCount = 2;
+  const instanceSize = 4 + 4 * axisCountFvar; // subfamilyNameID + flags + coord
+  const axesArrayOffset = 16;
   const fvar = [
     ...u16(1),
     ...u16(0),
-    ...u16(16), // axesArrayOffset
-    ...u16(2), // reserved
-    ...u16(1), // axisCount
-    ...u16(20), // axisSize
-    ...u16(0), // instanceCount
-    ...u16(0), // instanceSize
+    ...u16(axesArrayOffset),
+    ...u16(2),
+    ...u16(axisCountFvar),
+    ...u16(axisSize),
+    ...u16(instanceCount),
+    ...u16(instanceSize),
     ...tag('GROW'),
     ...fixed16_16(0),
     ...fixed16_16(0),
     ...fixed16_16(100),
-    ...u16(0), // flags
-    ...u16(axisNameId)
+    ...u16(0),
+    ...u16(axisNameId),
+    // Bare @ 0
+    ...u16(bareNameId),
+    ...u16(0),
+    ...fixed16_16(0),
+    // Growth @ 100
+    ...u16(growthNameId),
+    ...u16(0),
+    ...fixed16_16(100)
+  ];
+
+  const stat = buildStatTable({ axisNameId, bareNameId, growthNameId });
+
+  // avar — map user normalized GROW → design coords via growthCurve01 knots.
+  const avarKeys = [0, 0.25, 0.5, 0.75, 1];
+  const avarMaps = avarKeys.flatMap((k) => [...f2dot14(k), ...f2dot14(growthCurve01(k))]);
+  const avar = [
+    ...u16(1), // major
+    ...u16(0), // minor
+    ...u16(0), // reserved
+    ...u16(1), // axisCount
+    ...u16(avarKeys.length),
+    ...avarMaps
   ];
 
   // gvar — Apple/fontTools layout (offsetToSharedTuples is Offset32 → 20-byte header)
@@ -529,6 +617,10 @@ export function buildGrowVariableTtf(input: VfFontInput): ArrayBuffer {
   const glyphCount = encoded.length;
   const longOffsets = 1; // Offset32 for per-glyph data offsets
 
+  // GlyphVariationData: SHARED_POINT_NUMBERS + 0x00 (= all points including phantoms).
+  // Omitting point numbers is invalid in practice — consumers misread the delta stream
+  // (fontTools → empty; CoreText/Gauntlet → spikes).
+  const SHARE_POINT_NUMBERS = 0x8000;
   const glyphVarDataOffsets: number[] = [];
   const glyphVarData: number[] = [];
   let gvOff = 0;
@@ -551,7 +643,14 @@ export function buildGrowVariableTtf(input: VfFontInput): ArrayBuffer {
     const deltaBlob = [...packDeltaRuns(dx), ...packDeltaRuns(dy)];
     const tupleHeader = [...u16(deltaBlob.length), ...u16(0)]; // shared tuple 0
     const dataOffset = 4 + tupleHeader.length;
-    const gvd = [...u16(1), ...u16(dataOffset), ...tupleHeader, ...deltaBlob];
+    // shared point numbers (1 byte 0 = all) then per-tuple deltas
+    const gvd = [
+      ...u16(SHARE_POINT_NUMBERS | 1),
+      ...u16(dataOffset),
+      ...tupleHeader,
+      0x00,
+      ...deltaBlob
+    ];
     glyphVarData.push(...gvd);
     gvOff += gvd.length;
   }
@@ -578,6 +677,8 @@ export function buildGrowVariableTtf(input: VfFontInput): ArrayBuffer {
 
   type Table = { tag: string; bytes: Uint8Array };
   const tables: Table[] = [
+    { tag: 'STAT', bytes: new Uint8Array(stat) },
+    { tag: 'avar', bytes: new Uint8Array(avar) },
     { tag: 'cmap', bytes: new Uint8Array(cmap) },
     { tag: 'fvar', bytes: new Uint8Array(fvar) },
     { tag: 'glyf', bytes: glyf },

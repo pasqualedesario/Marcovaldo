@@ -68,23 +68,32 @@ async function main() {
       '-c',
       `
 from fontTools.ttLib import TTFont
+from fontTools.varLib import instancer
 f = TTFont(${JSON.stringify(outPath)})
-assert 'fvar' in f, 'missing fvar'
-assert 'gvar' in f, 'missing gvar'
+assert 'fvar' in f and 'gvar' in f and 'avar' in f and 'STAT' in f
 ax = f['fvar'].axes[0]
-assert ax.axisTag == 'GROW', ax.axisTag
-assert ax.minValue == 0 and ax.maxValue == 100, (ax.minValue, ax.maxValue)
-# cmap
+assert ax.axisTag == 'GROW'
+assert ax.minValue == 0 and ax.maxValue == 100
+assert ax.axisNameID >= 256, ax.axisNameID
 cmap = f.getBestCmap()
-assert 0x41 in cmap and 0x42 in cmap, cmap
-# gvar point counts
-gv = f['gvar']
+assert 0x41 in cmap and 0x42 in cmap
 for name in ('A', 'B'):
-    g = f['glyf'][name]
-    n = g.numberOfContours
-    assert n >= 1, name
-print('fontTools ok', list(f.keys()))
-print('GROW', ax.minValue, ax.defaultValue, ax.maxValue)
+    assert f['glyf'][name].numberOfContours >= 1
+# GROW=100 must move points vs default
+def pts(font, name='A'):
+    g = font['glyf'][name]
+    return list(g.coordinates) if g.numberOfContours > 0 else []
+base = pts(f)
+inst = instancer.instantiateVariableFont(f, {'GROW': 100}, inplace=False)
+hi = pts(inst)
+assert base != hi, 'GROW=100 identical to default'
+# avar should compress mid-axis vs linear
+mid = instancer.instantiateVariableFont(TTFont(${JSON.stringify(outPath)}), {'GROW': 50}, inplace=False)
+mid_pts = pts(mid)
+# at least some motion at 50
+assert mid_pts != base
+print('fontTools ok tables', sorted(f.keys()))
+print('GROW', ax.minValue, '→', ax.maxValue, 'nameID', ax.axisNameID)
 `
     ],
     { encoding: 'utf8' }

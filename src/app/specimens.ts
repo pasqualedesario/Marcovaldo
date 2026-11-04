@@ -1,5 +1,5 @@
 import { contoursToSvgD } from '../core/path/ops';
-import { buildOpenSpecimen, growthKey, morphKey } from '../core/pipeline';
+import { buildOpenSpecimen, paintFingerprint } from '../core/pipeline';
 import { applySelOverlay, createSelLayer, SVG_NS } from '../preview/selection';
 import { createFrameScheduler, yieldToMain } from '../lib/schedule';
 import { nearestStopIndex, PT_TO_PX, selectionBounds } from '../lib/math';
@@ -80,15 +80,20 @@ function createLineSvg(): {
   return { svg, fill, selRect, selPath, clipRect };
 }
 
-function lineFingerprint(line: LineVisual, block: BlockModel, state: AppState): string {
-  return [
-    line.text,
-    block.sizePt,
-    morphKey(morphSpec(state)),
-    state.offset,
-    growthKey(state.growth),
-    state.font?.name ?? ''
-  ].join('|');
+function lineFingerprint(
+  line: LineVisual,
+  block: BlockModel,
+  state: AppState,
+  growth: number
+): string {
+  return paintFingerprint({
+    fontName: state.font?.name ?? '',
+    morph: morphSpec(state),
+    offset: state.offset,
+    growth,
+    text: line.text,
+    size: block.sizePt
+  });
 }
 
 function paintLineSelection(
@@ -159,10 +164,11 @@ function paintLineVisual(
   line: LineVisual,
   block: BlockModel,
   state: AppState,
+  growth: number,
   force = false
 ): void {
   if (!state.font) return;
-  const fp = lineFingerprint(line, block, state);
+  const fp = lineFingerprint(line, block, state, growth);
   if (!force && fp === line.fingerprint) {
     paintLineSelection(line, block, state.bg);
     return;
@@ -171,7 +177,7 @@ function paintLineVisual(
   const result = buildOpenSpecimen({
     font: state.font,
     text: line.text,
-    params: paramsSnapshot(state),
+    params: { ...paramsSnapshot(state), growth },
     morph: morphSpec(state),
     offset: state.offset,
     sizePx: block.sizePt * PT_TO_PX
@@ -264,12 +270,19 @@ function indexAtBlockPointer(block: BlockModel, clientX: number, clientY: number
   return absoluteIndex(parts, Math.max(0, li), local);
 }
 
+/**
+ * Live specimen gallery.
+ * `getPaintGrowth` freezes GROW while the stage plays so blocks stay stills,
+ * then catch up when play stops (avoids re-morphing every rAF).
+ */
 export function mountSpecimens(
   root: HTMLElement,
-  state: AppState
+  state: AppState,
+  opts?: { getPaintGrowth?: () => number }
 ): { refresh: () => void; rebuild: () => void } {
   const blocks: BlockModel[] = [];
   let paintToken = 0;
+  const paintGrowth = () => opts?.getPaintGrowth?.() ?? state.growth;
 
   const rebuild = () => {
     paintToken++;
@@ -334,7 +347,6 @@ export function mountSpecimens(
               /* ignore */
             }
           } else {
-            // Same line count: update line texts + starts in place.
             let start = 0;
             for (let i = 0; i < block.lines.length; i++) {
               const line = block.lines[i]!;
@@ -358,9 +370,10 @@ export function mountSpecimens(
   };
 
   const paintBlock = async (block: BlockModel, st: AppState, force = false) => {
+    const growth = paintGrowth();
     syncMobileReadonly(block);
     for (let i = 0; i < block.lines.length; i++) {
-      paintLineVisual(block.lines[i]!, block, st, force);
+      paintLineVisual(block.lines[i]!, block, st, growth, force);
       if ((i & 1) === 1) await yieldToMain();
     }
   };

@@ -1,8 +1,7 @@
 :root{
   /*
    * Fixed triad (sync with src/lib/palette.json).
-   * UI chrome always FOSS Modern; specimen face is swapped in JS.
-   * Dark + light for ink; accent for hover / focus.
+   * Specimen + brand face swap in JS. Accent for hover/focus.
    */
   --color-dark:#172713;     /* Deep Slate Olive */
   --color-light:#f5f5b8;    /* Sulphur Yellow */
@@ -16,10 +15,6 @@
   /* Solid pills: yellow fill, dark olive type */
   --chip:var(--fg);
   --ink:var(--bg);
-  --knob:var(--fg);
-  --track:color-mix(in srgb,var(--fg) 28%,transparent);
-  --shade:color-mix(in srgb,var(--bg) 22%,transparent);
-  --shade-soft:color-mix(in srgb,var(--bg) 8%,transparent);
 
   --font-sans:'FOSS Modern',ui-sans-serif,system-ui,sans-serif;
   --f:var(--font-sans);
@@ -40,9 +35,6 @@ html,body{margin:0;min-height:100%}
 html{
   background:var(--bg);
   overscroll-behavior:none;
-  /* Match range sliders: 12px square track, accent thumb, no radius. */
-  scrollbar-width:thin;
-  scrollbar-color:var(--accent) color-mix(in srgb,var(--fg) 18%,transparent);
 }
 body{
   background:var(--bg);color:var(--fg);
@@ -55,27 +47,6 @@ body{
   overflow-x:hidden;overflow-y:auto;
   overscroll-behavior:none;
 }
-
-::-webkit-scrollbar{
-  width:12px;
-  height:12px;
-}
-::-webkit-scrollbar-track{
-  background:color-mix(in srgb,var(--fg) 18%,transparent);
-  border-radius:0;
-}
-::-webkit-scrollbar-thumb{
-  background:var(--accent);
-  border-radius:0;
-  border:0;
-  min-height:24px;
-}
-::-webkit-scrollbar-thumb:hover{
-  background:color-mix(in srgb,var(--accent) 82%,var(--fg));
-}
-::-webkit-scrollbar-corner{
-  background:transparent;
-}
 button,input{font:inherit;color:inherit}
 ::selection{
   background:var(--accent);
@@ -84,9 +55,17 @@ button,input{font:inherit;color:inherit}
 :focus-visible{
   outline:2px solid var(--accent);
   outline-offset:3px;
-  border-radius:10px;
+  border-radius:0;
 }
 :focus:not(:focus-visible){outline:none}
+.brand:focus-visible,
+.about-mark:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:3px;
+}
+.about-sheet :focus-visible{
+  outline-color:var(--fg);
+}
 
 .app{
   display:flex;flex-direction:column;
@@ -137,8 +116,8 @@ button,input{font:inherit;color:inherit}
   -webkit-appearance:none;
   transition:color .18s ease;
 }
-.brand:focus,.brand:focus-visible,
-.about-mark:focus,.about-mark:focus-visible{outline:none}
+.brand:focus:not(:focus-visible),
+.about-mark:focus:not(:focus-visible){outline:none}
 .brand-svg{
   display:block;
   height:1.15em;
@@ -306,7 +285,8 @@ canvas.raster{
   flex:none;
 }
 body.is-busy{cursor:progress}
-body.is-busy #otf{opacity:.72;pointer-events:none}
+body.is-busy #otf,
+body.is-busy #otf-static{opacity:.72;pointer-events:none}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -376,8 +356,7 @@ body.is-busy #otf{opacity:.72;pointer-events:none}
     color:var(--bg);
   }
   .brand:hover,
-  .about-mark:hover,
-  .about-sheet .brand:hover{
+  .about-mark:hover{
     color:var(--accent) !important;
   }
   .credits-link:hover{color:var(--accent)}
@@ -412,7 +391,7 @@ body.is-busy #otf{opacity:.72;pointer-events:none}
   color:var(--bg);
 }
 
-/* Rectangular chip-style slider shells (same height as Random / Forma). */
+/* Rectangular chip-style slider shells (same height as Casuale / Forma). */
 label.field{
   display:flex;
   align-items:center;
@@ -536,10 +515,12 @@ input[type=range].ios::-moz-range-thumb{
   position:relative;
 }
 
-/* About — inverted palette; soft solid crossfade (no gradient / RD). */
+/* About — inverted palette; GSAP slides up from below (final section). */
 .about-sheet{
+  /* Inverted page: sulphur yellow + olive; accent stays apricot for hover. */
   --bg:var(--color-light);
   --fg:var(--color-dark);
+  --accent:var(--color-accent);
   --fg-muted:color-mix(in srgb,var(--color-dark) 72%,var(--color-light));
   --chip:var(--color-dark);
   --ink:var(--color-light);
@@ -552,9 +533,9 @@ input[type=range].ios::-moz-range-thumb{
   color:var(--fg);
   opacity:0;
   pointer-events:none;
-  transition:opacity .48s cubic-bezier(.22,1,.36,1);
   overflow:auto;
   -webkit-overflow-scrolling:touch;
+  will-change:transform;
 }
 .about-sheet[hidden]{display:none !important}
 .about-sheet.is-open{
@@ -562,7 +543,6 @@ input[type=range].ios::-moz-range-thumb{
   pointer-events:auto;
 }
 .about-sheet.is-closing{
-  opacity:0;
   pointer-events:none;
 }
 .about-panel{
@@ -573,69 +553,73 @@ input[type=range].ios::-moz-range-thumb{
   min-height:100dvh;
   display:grid;
   grid-template-rows:auto 1fr auto;
-  gap:var(--pad);
+  gap:clamp(1rem, 3vh, 2rem);
   padding:var(--pad-t) max(var(--pad), env(safe-area-inset-right, 0px)) var(--pad-b) max(var(--pad), env(safe-area-inset-left, 0px));
-  opacity:0;
-  transition:opacity .4s cubic-bezier(.22,1,.36,1) .06s;
 }
-.about-panel.is-visible{opacity:1}
-.about-topbar{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  align-items:center;
-  column-gap:var(--pad);
-  min-height:var(--chip-h);
-}
-.about-top-left{min-width:0}
-.about-sheet-brand{
-  justify-self:center;
-  color:var(--fg);
-}
-.about-top-right{
-  justify-self:end;
-  display:flex;
-  align-items:center;
-  gap:var(--gap);
-}
-.about-body{
+/* Top: small centered lead. */
+.about-head{
   display:flex;
   flex-direction:column;
-  justify-content:center;
   align-items:center;
-  align-self:center;
-  gap:clamp(0.75rem, 2vh, 1.35rem);
-  width:min(100%, 63rem);
-  margin:0 auto;
+  gap:var(--gap);
   text-align:center;
-  /* Match 26pt specimen optical size, fluid down. */
-  --about-fs:clamp(1.05rem, 1.35vw + 0.7rem, 26pt);
-  --about-lh:1.2;
+  width:min(100%, 42rem);
+  margin-inline:auto;
+  padding-top:var(--gap);
 }
-.about-foot{
-  display:flex;
-  align-items:flex-end;
-  justify-content:flex-start;
-  min-height:var(--chip-h);
-}
-.about-body .credits-lead,
-.about-body .credits-note,
-.about-body .credits-morph,
-.about-body .credits-by,
-.about-body .credits-type{
+.about-kicker{
   margin:0;
-  max-width:42ch;
-  font:700 var(--about-fs)/var(--about-lh) var(--f);
+  max-width:36ch;
+  font:700 var(--fs-x)/var(--lh-x) var(--f);
   color:var(--fg);
-  text-align:center;
   text-wrap:balance;
 }
-.about-body .credits-lead{
-  max-width:33ch;
-  margin-bottom:clamp(0.35rem, 1.2vh, 0.85rem);
+/* Center: large Marcovaldo wordmark. */
+.about-hero{
+  display:grid;
+  place-items:center;
+  min-height:0;
+  width:100%;
+  padding:clamp(0.5rem, 2vh, 1.5rem) 0;
 }
-.about-body .credits-morph,
-.about-body .credits-type{
+.about-sheet-brand{
+  color:var(--fg);
+  max-width:100%;
+}
+.about-sheet-brand .brand-svg{
+  max-width:min(92vw, 56rem);
+  height:auto;
+}
+/* Bottom: compact centered credits. */
+.about-credits{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:var(--pad) clamp(var(--pad), 4vw, 3rem);
+  width:min(100%, 40rem);
+  margin:0 auto;
+  padding-bottom:var(--gap);
+  font:700 var(--fs-x)/var(--lh-x) var(--f);
+  color:var(--fg);
+  text-align:center;
+}
+.about-credits-col{
+  display:flex;
+  flex-direction:column;
+  gap:var(--gap);
+  min-width:0;
+}
+.about-credits p{
+  margin:0;
+  text-wrap:balance;
+}
+.about-credits .credits-type{
   white-space:normal;
+}
+@media (max-width:520px){
+  .about-credits{
+    grid-template-columns:1fr;
+    width:min(100%, 28rem);
+  }
 }
 .credits-note em{
   font-weight:700;
@@ -651,30 +635,26 @@ input[type=range].ios::-moz-range-thumb{
   text-decoration:none;
   transition:color .15s;
 }
-body.about-open{overflow:hidden}
+html.about-open,
+body.about-open{
+  overflow:hidden;
+}
 
 @media (prefers-reduced-motion:reduce){
   .about-sheet,
-  .about-panel{transition:none !important}
+  .about-panel{transition:none !important;transform:none !important}
 }
 
-/* —— Mobile —— */
+/* —— Mobile ——
+ * Same --pad / --gap / chip padding as desktop.
+ * Only collapse what cannot fit (tracking) and size the brand/scale.
+ */
 @media (max-width:720px){
-  :root{
-    --pad:12px;
-  }
-
-  /* Equal top/bottom page padding (safe-area aware). */
-  .app{
-    padding-top:max(var(--pad), env(safe-area-inset-top, 0px));
-    padding-bottom:max(var(--pad), env(safe-area-inset-bottom, 0px));
-  }
-
   .workspace{
     height:calc(
       100dvh
-      - max(var(--pad), env(safe-area-inset-top, 0px))
-      - max(var(--pad), env(safe-area-inset-bottom, 0px))
+      - max(var(--pad-t), env(safe-area-inset-top, 0px))
+      - max(var(--pad-b), env(safe-area-inset-bottom, 0px))
     );
     min-height:0;
     gap:var(--pad);
@@ -682,12 +662,12 @@ body.about-open{overflow:hidden}
     grid-template-rows:auto minmax(0,1fr) auto;
   }
 
-  /* One row: face · Marcovaldo · scale. */
+  /* One row: face · Marcovaldo · scale — same gaps as desktop. */
   .topbar{
     display:grid;
     grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
     align-items:center;
-    column-gap:var(--pad);
+    gap:var(--gap);
     min-height:var(--chip-h);
   }
   .topbar-center{
@@ -696,27 +676,28 @@ body.about-open{overflow:hidden}
   .brand{
     font-size:var(--fs-x);
   }
+  .brand-svg{
+    max-width:min(42vw, 168px);
+    height:1em;
+  }
   .topbar-left,
   .topbar-right{
     width:auto;
     min-width:0;
     flex-wrap:nowrap;
     align-items:center;
+    gap:var(--gap);
   }
-  .topbar-left{justify-content:flex-start;gap:var(--gap)}
+  .topbar-left{justify-content:flex-start}
   .topbar-right{justify-content:flex-end}
-  .face-chips .chip{padding:0 var(--gap)}
   .scale-field{
     flex:none;
-    width:100%;
+    width:auto;
     max-width:7.5rem;
     min-width:0;
-    gap:var(--gap);
-    padding:0 var(--gap);
   }
   .tracking-field{display:none!important}
 
-  /* Stage takes leftover height; dock stays content-sized. */
   .stage{
     width:100%;
     min-height:0;
@@ -728,30 +709,34 @@ body.about-open{overflow:hidden}
     gap:var(--gap);
     width:100%;
     min-height:0;
-    /* Definite cap so grid 1fr can enlarge the stage (%% max-height is cyclic). */
     max-height:42dvh;
     overflow-x:hidden;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
   }
 
-  .params{
-    max-width:none;
-    flex:1 1 100%;
-  }
-
+  /* Same row as desktop: crescita left, download right. */
   .dock-actions{
-    flex-direction:column;
-    align-items:stretch;
+    flex-direction:row;
+    flex-wrap:nowrap;
+    align-items:center;
+    justify-content:space-between;
     gap:var(--pad);
   }
+  .params{
+    flex:1 1 auto;
+    width:auto;
+    max-width:min(280px, calc(100% - 5.5rem));
+    min-width:0;
+  }
   .dock-exports{
-    margin-left:0;
-    width:100%;
+    margin-left:auto;
+    width:auto;
+    flex:none;
     justify-content:flex-end;
   }
   .download-cluster{
-    width:100%;
+    width:auto;
   }
   .download-cluster.is-fixed{
     width:auto;
@@ -766,14 +751,8 @@ body.about-open{overflow:hidden}
     caret-color:transparent;
   }
 
-  .chip,
-  .specimen-chip{
-    padding:0 var(--gap);
-  }
-
-  /* Equal section padding; tighter, even specimen leading. */
   .specimen-section{padding:calc(var(--pad) * 2) 0}
-  .specimen-container{gap:var(--pad)}
+  .specimen-container{gap:calc(var(--pad) * 2)}
   .specimen-block{gap:var(--gap)}
   .specimen-lines{
     align-items:center;
@@ -789,36 +768,17 @@ body.about-open{overflow:hidden}
     height:auto !important;
   }
 
+  /* Same 3-slot footer as desktop (lang · about · download). */
   .site-credits{
-    grid-template-columns:1fr auto;
+    grid-template-columns:auto 1fr auto;
     gap:var(--pad);
     padding-top:calc(var(--pad) * 2);
     padding-bottom:0;
   }
-  .lang-land{
-    grid-column:1;grid-row:1;
-    justify-self:start;
-  }
-  .download-land{
-    grid-column:2;grid-row:1;
-    justify-self:end;align-self:end;
-  }
-  .about-mark{
-    grid-column:1 / -1;
-    grid-row:2;
-  }
-  .about-body .credits-lead,
-  .about-body .credits-note,
-  .about-body .credits-morph,
-  .about-body .credits-by,
-  .about-body .credits-type{
-    max-width:27ch;
-  }
 }
 
 @media (max-width:420px){
-  .chip,
-  .specimen-chip{padding:0 var(--gap)}
-  .topbar-center{max-width:min(40vw, 140px)}
+  .topbar-center{max-width:min(38vw, 132px)}
+  .brand-svg{max-width:min(38vw, 132px)}
   .scale-field{max-width:5.75rem}
 }

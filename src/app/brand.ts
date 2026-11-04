@@ -1,5 +1,5 @@
 import { contoursToSvgD } from '../core/path/ops';
-import { buildOpenSpecimen, growthKey, morphKey } from '../core/pipeline';
+import { buildOpenSpecimen, paintFingerprint } from '../core/pipeline';
 import { PT_TO_PX } from '../lib/math';
 import { SVG_NS } from '../preview/selection';
 import type { AppState } from './state';
@@ -41,36 +41,37 @@ function ensureNodes(el: HTMLElement): MarkNodes {
   return { svg, path };
 }
 
-/** Morph wordmark — color from CSS (hover → accent). */
+/** Morph wordmark — color from CSS (hover → accent). Optional growth freeze for play. */
 export function paintMorphMark(
   el: HTMLElement,
   state: AppState,
   text: string,
-  sizePt = MARK_PT
+  sizePt = MARK_PT,
+  growth = state.growth
 ): void {
   el.style.removeProperty('color');
-  const font = state.uiFont ?? state.font;
+  const font = state.font;
   if (!font) {
     paintFallback(el, text);
     return;
   }
 
   const morph = morphSpec(state);
-  const fp = [
-    font.name,
-    morphKey(morph),
-    state.offset,
+  const fp = paintFingerprint({
+    fontName: font.name,
+    morph,
+    offset: state.offset,
+    growth,
     text,
-    sizePt,
-    growthKey(state.growth)
-  ].join('|');
+    size: sizePt
+  });
 
   if (fp === lastFp.get(el) && el.querySelector(':scope > .brand-svg')) return;
 
   const result = buildOpenSpecimen({
     font,
     text,
-    params: paramsSnapshot(state),
+    params: { ...paramsSnapshot(state), growth },
     morph,
     offset: state.offset,
     sizePx: sizePt * PT_TO_PX,
@@ -91,6 +92,6 @@ export function paintMorphMark(
   path.setAttribute('d', contoursToSvgD(result.lamina));
 }
 
-export function paintBrand(el: HTMLElement, state: AppState): void {
-  paintMorphMark(el, state, BRAND_TEXT);
+export function paintBrand(el: HTMLElement, state: AppState, growth = state.growth): void {
+  paintMorphMark(el, state, BRAND_TEXT, MARK_PT, growth);
 }

@@ -1,4 +1,6 @@
+import { t } from '../i18n';
 import { BRAND_TEXT, paintMorphMark } from './brand';
+import { animateAboutClose, animateAboutOpen } from './motion';
 import type { AppState } from './state';
 
 export type AboutUi = {
@@ -7,10 +9,6 @@ export type AboutUi = {
   isOpen: () => boolean;
   refreshMarks: () => void;
 };
-
-function reducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 /** Hard jump to generator top — same as a fresh page load. */
 function hardResetToGenerator(workspace: HTMLElement): void {
@@ -31,11 +29,15 @@ function hardResetToGenerator(workspace: HTMLElement): void {
   body.style.scrollBehavior = prevBody;
 }
 
-/**
- * About sheet — soft solid crossfade (inverted palette).
- * Returning to the generator resets scroll under the sheet first,
- * so the mid-page never flashes before the top view.
- */
+function focusables(root: HTMLElement): HTMLElement[] {
+  return [
+    ...root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ].filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+}
+
+/** About sheet — slides up from below. Close via Escape, wordmark, or topbar brand. */
 export function mountAbout(opts: {
   state: AppState;
   openBtn: HTMLElement;
@@ -43,42 +45,38 @@ export function mountAbout(opts: {
   panel: HTMLElement;
   brandBtn: HTMLElement;
   sheetBrand: HTMLElement;
-  generatorBtn: HTMLElement;
   workspace: HTMLElement;
-  onLang?: () => void;
-  langBtn?: HTMLElement | null;
+  getPaintGrowth?: () => number;
 }): AboutUi {
-  const {
-    state,
-    openBtn,
-    sheet,
-    panel,
-    brandBtn,
-    sheetBrand,
-    generatorBtn,
-    workspace,
-    onLang,
-    langBtn
-  } = opts;
+  const { state, openBtn, sheet, panel, brandBtn, sheetBrand, workspace, getPaintGrowth } = opts;
   let open = false;
   let busy = false;
+  let lastFocus: HTMLElement | null = null;
+  const app = document.querySelector('.app') as HTMLElement | null;
+
+  const heroPt = () =>
+    Math.round(Math.min(92, Math.max(44, Math.min(window.innerWidth, window.innerHeight) * 0.11)));
 
   const refreshMarks = () => {
-    paintMorphMark(openBtn, state, 'About');
-    paintMorphMark(sheetBrand, state, BRAND_TEXT);
+    const growth = getPaintGrowth?.() ?? state.growth;
+    paintMorphMark(openBtn, state, t().about, 18, growth);
+    paintMorphMark(sheetBrand, state, BRAND_TEXT, heroPt(), growth);
   };
 
   const finishClose = (toGenerator: boolean) => {
-    // Ensure top is set before the sheet uncovers (same frame).
     if (toGenerator) hardResetToGenerator(workspace);
     sheet.hidden = true;
     sheet.classList.remove('is-open', 'is-closing');
-    panel.classList.remove('is-visible');
+    document.documentElement.classList.remove('about-open');
     document.body.classList.remove('about-open');
     sheet.setAttribute('aria-hidden', 'true');
     openBtn.setAttribute('aria-expanded', 'false');
+    if (app) app.inert = false;
     busy = false;
     open = false;
+    const restore = lastFocus && document.contains(lastFocus) ? lastFocus : openBtn;
+    restore.focus({ preventScroll: true });
+    lastFocus = null;
     if (toGenerator) {
       requestAnimationFrame(() => hardResetToGenerator(workspace));
     }
@@ -92,53 +90,63 @@ export function mountAbout(opts: {
     }
     busy = true;
 
-    // Reset under the opaque sheet first — never reveal the old scroll offset.
     if (toGenerator) hardResetToGenerator(workspace);
 
     sheet.classList.add('is-closing');
     sheet.classList.remove('is-open');
-    panel.classList.remove('is-visible');
 
-    const done = () => finishClose(toGenerator);
-    if (reducedMotion()) {
-      done();
-      return;
-    }
-    sheet.addEventListener('transitionend', done, { once: true });
-    window.setTimeout(done, 520);
+    void animateAboutClose(sheet, panel).then(() => finishClose(toGenerator));
   };
 
   const openSheet = () => {
     if (open || busy) return;
     busy = true;
+    lastFocus = (document.activeElement as HTMLElement | null) ?? openBtn;
     refreshMarks();
     sheet.hidden = false;
     sheet.setAttribute('aria-hidden', 'false');
     openBtn.setAttribute('aria-expanded', 'true');
+    document.documentElement.classList.add('about-open');
     document.body.classList.add('about-open');
+    if (app) app.inert = true;
     sheet.classList.remove('is-closing');
-    panel.classList.remove('is-visible');
-    void sheet.offsetWidth;
     sheet.classList.add('is-open');
-    panel.classList.add('is-visible');
     open = true;
-    busy = false;
-    generatorBtn.focus({ preventScroll: true });
+    void animateAboutOpen(sheet, panel).then(() => {
+      busy = false;
+      sheetBrand.focus({ preventScroll: true });
+    });
   };
 
   openBtn.addEventListener('click', () => openSheet());
-  generatorBtn.addEventListener('click', () => close({ toGenerator: true }));
   sheetBrand.addEventListener('click', () => close({ toGenerator: true }));
   brandBtn.addEventListener('click', () => {
     if (open || busy) close({ toGenerator: true });
     else hardResetToGenerator(workspace);
   });
-  langBtn?.addEventListener('click', () => onLang?.());
+  window.addEventListener('resize', () => {
+    if (open) refreshMarks();
+  });
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && open && !busy) {
+    if (!open || busy) return;
+    if (e.key === 'Escape') {
       e.preventDefault();
       close({ toGenerator: true });
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const nodes = focusables(panel);
+    if (!nodes.length) return;
+    const first = nodes[0]!;
+    const last = nodes[nodes.length - 1]!;
+    const active = document.activeElement as HTMLElement | null;
+    if (e.shiftKey && (active === first || !panel.contains(active))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (active === last || !panel.contains(active))) {
+      e.preventDefault();
+      first.focus();
     }
   });
 

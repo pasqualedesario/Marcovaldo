@@ -1,11 +1,6 @@
 /**
- * Axis Play: ping-pong GROW 0↔100 with ease-in-out.
- * Values are quantized so morphology cache can hit during scrubbing.
+ * GROW axis play: sine loop 0↔100 on the current shape/margin only.
  */
-
-function easeInOutQuad(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-}
 
 export type GrowthPlayHandle = {
   playing: () => boolean;
@@ -17,13 +12,13 @@ export type GrowthPlayHandle = {
 export function createGrowthPlay(opts: {
   getGrowth: () => number;
   setGrowth: (n: number) => void;
-  /** Full cycle duration (0→100→0), ms. */
+  /** Full cycle duration (0→100→0), ms. Default 10s. */
   periodMs?: number;
-  /** Snap growth to this step (default 2) for cheaper morph. */
+  /** Quantize growth (default 2) to cut morph work while playing. */
   step?: number;
   onPlayingChange?: (playing: boolean) => void;
 }): GrowthPlayHandle {
-  const period = opts.periodMs ?? 3200;
+  const period = opts.periodMs ?? 10000;
   const step = Math.max(1, opts.step ?? 2);
   let raf = 0;
   let playing = false;
@@ -36,11 +31,16 @@ export function createGrowthPlay(opts: {
     return Math.max(0, Math.min(100, q));
   };
 
+  /** Resume sine so current growth maps onto the ascending half. */
+  const phaseFromGrowth = (g: number) => {
+    const x = Math.max(-1, Math.min(1, g / 50 - 1));
+    return Math.asin(x);
+  };
+
   const frame = (now: number) => {
     if (!playing) return;
-    const phase = (phase0 + (now - t0) / period) % 1;
-    const tri = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-    const g = snap(easeInOutQuad(tri) * 100);
+    const theta = phase0 + ((now - t0) / period) * Math.PI * 2;
+    const g = snap((Math.sin(theta) * 0.5 + 0.5) * 100);
     if (g !== lastEmitted) {
       lastEmitted = g;
       opts.setGrowth(g);
@@ -59,9 +59,12 @@ export function createGrowthPlay(opts: {
 
   const start = () => {
     if (playing) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      opts.setGrowth(snap(50));
+      return;
+    }
     playing = true;
-    const g = snap(opts.getGrowth()) / 100;
-    phase0 = g * 0.5;
+    phase0 = phaseFromGrowth(snap(opts.getGrowth()));
     t0 = performance.now();
     lastEmitted = -1;
     opts.onPlayingChange?.(true);

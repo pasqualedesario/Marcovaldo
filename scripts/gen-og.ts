@@ -1,11 +1,11 @@
 /**
  * Build share/preview assets:
- * - public/og.png (1200×630) — generator-style frame, "Marcovaldo" + random morph
+ * - public/og.png (2400×1260, 2×) — current chrome + "Marcovaldo" morph
  * - public/favicon.png / apple-touch-icon.png — single morphed "M" in accent orange
  *
  * Run: npm run og
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Resvg } from '@resvg/resvg-js';
@@ -19,15 +19,20 @@ import {
 import { contoursToSvgD } from '../src/core/path/ops';
 import { buildOpenSpecimen } from '../src/core/pipeline';
 import { loadFontFromBuffer } from '../src/font/load';
-import { PT_TO_PX } from '../src/lib/math';
+import { PT_TO_PX, TRACKING_MAX, TRACKING_MID } from '../src/lib/math';
 import { COLOR_ACCENT, COLOR_DARK, COLOR_LIGHT } from '../src/lib/palette';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const FONT_MODERN = join(root, 'public/fonts/FOSS-Modern/FOSS-Modern-Bold.otf');
 
-const OG_W = 1200;
-const OG_H = 630;
+/** Logical OG frame; PNG is rendered at 2×. */
+const SCALE = 2;
+const OG_W = 1200 * SCALE;
+const OG_H = 630 * SCALE;
 const ICON = 512;
 const FAV = 192;
+
+const s = (n: number) => n * SCALE;
 
 function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
@@ -47,6 +52,11 @@ function randomMorph(): { shape: LeafShape; margin: LeafMargin; offset: number; 
 function writePng(svg: string, outPath: string, width: number, background?: string): void {
   const resvg = new Resvg(svg, {
     fitTo: { mode: 'width', value: width },
+    font: {
+      fontFiles: [FONT_MODERN],
+      loadSystemFonts: true,
+      defaultFontFamily: 'FOSS Modern'
+    },
     ...(background ? { background } : {})
   });
   writeFileSync(outPath, resvg.render().asPng());
@@ -64,52 +74,75 @@ function fitPath(
   boxH: number,
   pad = 0.08
 ): { transform: string; d: string } {
-  const s = Math.min((boxW * (1 - pad * 2)) / Math.max(1, glyphW), (boxH * (1 - pad * 2)) / Math.max(1, glyphH));
-  const tx = boxX + (boxW - glyphW * s) / 2;
-  const ty = boxY + (boxH - glyphH * s) / 2;
+  const scale = Math.min(
+    (boxW * (1 - pad * 2)) / Math.max(1, glyphW),
+    (boxH * (1 - pad * 2)) / Math.max(1, glyphH)
+  );
+  const tx = boxX + (boxW - glyphW * scale) / 2;
+  const ty = boxY + (boxH - glyphH * scale) / 2;
   return {
-    transform: `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(6)})`,
+    transform: `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${scale.toFixed(6)})`,
     d
   };
 }
 
+const UI_FONT = `'FOSS Modern', ui-sans-serif, system-ui, sans-serif`;
+
+/** Filled cream chip; active = apricot accent + dark ink (matches live UI). */
 function chip(
   x: number,
   y: number,
   w: number,
   h: number,
   label: string,
-  opts: { active?: boolean; accent?: boolean } = {}
+  opts: { active?: boolean; fontSize?: number } = {}
 ): string {
-  const fill = opts.accent ? COLOR_ACCENT : opts.active ? COLOR_LIGHT : 'transparent';
-  const stroke = opts.active || opts.accent ? 'none' : COLOR_LIGHT;
-  const ink = opts.accent || opts.active ? COLOR_DARK : COLOR_LIGHT;
-  const sw = opts.active || opts.accent ? 0 : 1.5;
+  const fill = opts.active ? COLOR_ACCENT : COLOR_LIGHT;
+  const ink = COLOR_DARK;
+  const fs = opts.fontSize ?? s(12);
   return `
   <g>
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
-    <text x="${x + w / 2}" y="${y + h / 2 + 1}" text-anchor="middle" dominant-baseline="middle"
-      font-family="'FOSS Modern', ui-sans-serif, system-ui, sans-serif" font-weight="700" font-size="13" fill="${ink}">${label}</text>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>
+    <text x="${x + w / 2}" y="${y + h / 2 + s(0.5)}" text-anchor="middle" dominant-baseline="middle"
+      font-family="${UI_FONT}" font-weight="700" font-size="${fs}" fill="${ink}">${label}</text>
   </g>`;
 }
 
-function field(x: number, y: number, w: number, h: number, label: string, val: string): string {
+/** Chip-style field shell: label · value · rectangular range (matches live UI). */
+function field(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  label: string,
+  val: string,
+  t01: number,
+  labelW = s(48)
+): string {
+  const padX = s(8);
+  const gap = s(6);
+  const fs = s(12);
+  const trackH = s(12);
+  const thumbW = s(8);
+  const valW = s(Math.max(22, String(val).length * 7.5));
+  const trackX = x + padX + labelW + gap + valW + gap;
+  const trackW = Math.max(s(36), w - (trackX - x) - padX);
+  const trackY = y + (h - trackH) / 2;
+  const pct = Math.max(0, Math.min(1, t01));
+  const fillW = Math.max(thumbW, pct * trackW);
+  const thumbX = trackX + Math.min(trackW - thumbW, Math.max(0, pct * trackW - thumbW / 2));
+  const trackMuted = 'rgba(23,39,19,0.18)';
+  const midY = y + h / 2 + s(0.5);
   return `
   <g>
     <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${COLOR_LIGHT}"/>
-    <text x="${x + 10}" y="${y + h / 2 + 1}" dominant-baseline="middle"
-      font-family="'FOSS Modern', ui-sans-serif, system-ui, sans-serif" font-weight="700" font-size="12" fill="${COLOR_DARK}">${label}</text>
-    <text x="${x + w - 10}" y="${y + h / 2 + 1}" text-anchor="end" dominant-baseline="middle"
-      font-family="'FOSS Modern', ui-sans-serif, system-ui, sans-serif" font-weight="700" font-size="12" fill="${COLOR_DARK}">${val}</text>
-  </g>`;
-}
-
-function slider(x: number, y: number, w: number, t01: number): string {
-  const kx = x + Math.max(0, Math.min(1, t01)) * w;
-  return `
-  <g>
-    <rect x="${x}" y="${y - 1}" width="${w}" height="2" fill="${COLOR_LIGHT}" opacity="0.35" rx="1"/>
-    <circle cx="${kx.toFixed(1)}" cy="${y}" r="7" fill="${COLOR_LIGHT}"/>
+    <text x="${x + padX}" y="${midY}" dominant-baseline="middle"
+      font-family="${UI_FONT}" font-weight="700" font-size="${fs}" fill="${COLOR_DARK}">${label}</text>
+    <text x="${x + padX + labelW + gap}" y="${midY}" dominant-baseline="middle"
+      font-family="${UI_FONT}" font-weight="700" font-size="${fs}" fill="${COLOR_DARK}" opacity="0.72">${val}</text>
+    <rect x="${trackX}" y="${trackY}" width="${trackW}" height="${trackH}" fill="${trackMuted}"/>
+    <rect x="${trackX}" y="${trackY}" width="${fillW.toFixed(1)}" height="${trackH}" fill="${COLOR_ACCENT}"/>
+    <rect x="${thumbX.toFixed(1)}" y="${trackY}" width="${thumbW}" height="${trackH}" fill="${COLOR_DARK}"/>
   </g>`;
 }
 
@@ -124,8 +157,9 @@ async function main(): Promise<void> {
   };
   console.log('og morph', morph);
   console.log('favicon morph', favMorph);
+  console.log(`og size ${OG_W}×${OG_H} (${SCALE}×)`);
 
-  const otf = readFileSync(join(root, 'public/fonts/FOSS-Modern/FOSS-Modern-Bold.otf'));
+  const otf = readFileSync(FONT_MODERN);
   const font = await loadFontFromBuffer(
     otf.buffer.slice(otf.byteOffset, otf.byteOffset + otf.byteLength),
     'FOSS Modern'
@@ -140,7 +174,7 @@ async function main(): Promise<void> {
     params,
     morph: morphSpec,
     offset: morph.offset,
-    sizePx: 96 * PT_TO_PX,
+    sizePx: 96 * PT_TO_PX * SCALE,
     caret: false
   });
   if (!word?.lamina.length) throw new Error('og word render failed');
@@ -159,50 +193,72 @@ async function main(): Promise<void> {
   const wordD = contoursToSvgD(word.lamina);
   const letterD = contoursToSvgD(letter.lamina);
 
-  // —— OG: generator screenshot mock ——
-  const pad = 28;
-  const topH = 48;
-  const dockH = 88;
+  // —— OG: current generator chrome (topbar + 2-row dock) ——
+  const pad = s(28);
+  const gap = s(8);
+  const chipH = s(36);
+  const topY = pad;
+  const topbarBottom = topY + chipH;
+  const dockGap = s(8);
+  const dockRows = 2;
+  const dockH = chipH * dockRows + dockGap + s(8);
   const stageX = pad;
-  const stageY = pad + topH + 12;
+  const stageY = topbarBottom + s(16);
   const stageW = OG_W - pad * 2;
   const stageH = OG_H - stageY - dockH - pad;
-  const fitted = fitPath(wordD, word.width, word.height, stageX, stageY, stageW, stageH, 0.1);
+  const fitted = fitPath(wordD, word.width, word.height, stageX, stageY, stageW, stageH, 0.08);
 
-  const chipH = 36;
-  const topY = pad;
-  const dockY = OG_H - pad - dockH + 8;
+  const dockY1 = OG_H - pad - dockH + s(4);
+  const dockY2 = dockY1 + chipH + dockGap;
+
+  // Topbar fields
+  const scaleW = s(168);
+  const trackW = s(160);
+  const scaleX = OG_W - pad - scaleW - gap - trackW;
+  const trackX = OG_W - pad - trackW;
+
+  // Dock row 2: growth + play + download
+  const playW = s(36);
+  const dlW = s(100);
+  const growthW = s(200);
+  const growthX = pad;
+  const playX = growthX + growthW + gap;
+  const dlX = OG_W - pad - dlW;
 
   const ogSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${OG_W} ${OG_H}" width="${OG_W}" height="${OG_H}">
-<!-- Marcovaldo generator preview · ${morph.shape}/${morph.margin} · offset ${morph.offset} · growth ${morph.growth} -->
+<!-- Marcovaldo generator preview · ${morph.shape}/${morph.margin} · offset ${morph.offset} · growth ${morph.growth} · ${SCALE}× -->
 <rect width="100%" height="100%" fill="${COLOR_DARK}"/>
 
 <!-- topbar -->
-${chip(pad, topY, 56, chipH, 'Sans', { active: true })}
-${chip(pad + 64, topY, 56, chipH, 'Serif', { active: false })}
-<text x="${OG_W / 2}" y="${topY + chipH / 2 + 1}" text-anchor="middle" dominant-baseline="middle"
-  font-family="'FOSS Modern', ui-sans-serif, system-ui, sans-serif" font-weight="700" font-size="18" fill="${COLOR_LIGHT}">Marcovaldo</text>
-${field(OG_W - pad - 280, topY, 130, chipH, 'Scala', '88')}
-${field(OG_W - pad - 140, topY, 140, chipH, 'Tracking', '0.00')}
+${chip(pad, topY, s(56), chipH, 'Sans', { active: true })}
+${chip(pad + s(56) + gap, topY, s(56), chipH, 'Serif')}
+<text x="${OG_W / 2}" y="${topY + chipH / 2 + s(0.5)}" text-anchor="middle" dominant-baseline="middle"
+  font-family="${UI_FONT}" font-weight="700" font-size="${s(20)}" fill="${COLOR_LIGHT}">Marcovaldo</text>
+${field(scaleX, topY, scaleW, chipH, 'Scala', '88', 0.88, s(36))}
+${field(trackX, topY, trackW, chipH, 'Tracking', '0.00', TRACKING_MID / TRACKING_MAX, s(58))}
 
 <!-- stage specimen -->
 <g transform="${fitted.transform}">
   <path fill="${COLOR_LIGHT}" fill-rule="nonzero" d="${fitted.d}"/>
 </g>
 
-<!-- dock -->
-${chip(pad, dockY, 72, chipH, 'Random')}
-${chip(pad + 80, dockY, 64, chipH, 'Forma')}
-${chip(pad + 152, dockY, 78, chipH, 'Margine')}
-${field(pad + 248, dockY, 160, chipH, 'Crescita', String(morph.growth))}
-${slider(pad + 258, dockY + chipH + 14, 140, morph.growth / 100)}
-${chip(OG_W - pad - 100, dockY, 100, chipH, 'Download')}
+<!-- dock row 1: morph -->
+${chip(pad, dockY1, s(72), chipH, 'Randomise')}
+${chip(pad + s(72) + gap, dockY1, s(64), chipH, 'Forma')}
+${chip(pad + s(72) + gap + s(64) + gap, dockY1, s(78), chipH, 'Margine')}
+
+<!-- dock row 2: growth + play + download -->
+${field(growthX, dockY2, growthW, chipH, 'Crescita', String(morph.growth), morph.growth / 100, s(52))}
+${chip(playX, dockY2, playW, chipH, '▶', { fontSize: s(11) })}
+${chip(dlX, dockY2, dlW, chipH, 'Download')}
 </svg>
 `;
 
-  writeFileSync(join(root, 'public/og.svg'), ogSvg, 'utf8');
-  console.log('wrote', join(root, 'public/og.svg'));
+  const tmpDir = join(root, 'tmp');
+  mkdirSync(tmpDir, { recursive: true });
+  writeFileSync(join(tmpDir, 'og.svg'), ogSvg, 'utf8');
+  console.log('wrote', join(tmpDir, 'og.svg'));
   writePng(ogSvg, join(root, 'public/og.png'), OG_W, COLOR_DARK);
 
   // Favicon / apple-touch: orange M, transparent, room for fan foliage.
@@ -217,17 +273,7 @@ ${chip(OG_W - pad - 100, dockY, 100, chipH, 'Download')}
 `;
   writePng(faviconSvgBody, join(root, 'public/apple-touch-icon.png'), ICON);
   writePng(faviconSvgBody, join(root, 'public/favicon.png'), FAV);
-
-  const favSvgFit = fitPath(letterD, letter.width, letter.height, 0, 0, 32, 32, 0.05);
-  const favSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-<g transform="${favSvgFit.transform}">
-  <path fill="${COLOR_ACCENT}" fill-rule="nonzero" d="${favSvgFit.d}"/>
-</g>
-</svg>
-`;
-  writeFileSync(join(root, 'public/favicon.svg'), favSvg, 'utf8');
-  console.log('wrote', join(root, 'public/favicon.svg'));
+  // PNG-only favicon — morphed SVG paths are hundreds of KB and unsuitable as icons.
 }
 
 main().catch((err) => {

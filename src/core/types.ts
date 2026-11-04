@@ -13,11 +13,11 @@ export type PathData = { readonly commands: readonly PathCmd[] };
 
 export type Bounds = { x1: number; y1: number; x2: number; y2: number };
 
-/** UI params (0–100). Botanical growth + typographic scale/tracking. */
+/** UI params: growth/scale 0–100; tracking 0–TRACKING_MAX (mid = 0em). */
 export type BotanicalParams = {
   growth: number;
   scale: number;
-  /** Letter-spacing for the hero specimen (0–100 → tight…open). */
+  /** Letter-spacing for the hero specimen (see TRACKING_MAX / trackingEm). */
   tracking: number;
 };
 

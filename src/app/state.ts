@@ -1,4 +1,4 @@
-import type { BotanicalParams, Contours } from '../core/types';
+import type { BotanicalParams } from '../core/types';
 import {
   DEFAULT_MARGIN,
   DEFAULT_SHAPE,
@@ -24,10 +24,8 @@ const randInt = (a: number, b: number) => Math.floor(a + Math.random() * (b - a 
 const clampPct = (n: number) => clamp(n, 0, 100);
 
 export type AppState = BotanicalParams & {
-  /** Specimen / editable text face (sans or serif). */
+  /** Active specimen / brand face (sans or serif). */
   font: LoadedFont | null;
-  /** UI chrome face — always FOSS Modern. */
-  uiFont: LoadedFont | null;
   face: FaceId;
   text: string;
   bg: string;
@@ -35,10 +33,6 @@ export type AppState = BotanicalParams & {
   offset: number;
   shape: LeafShape;
   margin: LeafMargin;
-  width: number;
-  height: number;
-  lamina: Contours;
-  pathD: string;
 };
 
 const BASE_TEXTS: ReadonlySet<string> = new Set([
@@ -72,7 +66,6 @@ export function specimenText(state: AppState, label?: string): string {
 export function createState(): AppState {
   return {
     font: null,
-    uiFont: null,
     face: DEFAULT_FACE,
     text: shapeBaseText(DEFAULT_SHAPE, t().shapes[DEFAULT_SHAPE]),
     bg: DEFAULT_BG,
@@ -80,10 +73,6 @@ export function createState(): AppState {
     offset: 0,
     shape: DEFAULT_SHAPE,
     margin: DEFAULT_MARGIN,
-    width: 0,
-    height: 0,
-    lamina: [],
-    pathD: '',
     growth: 70,
     scale: 88,
     tracking: 50

@@ -1,5 +1,6 @@
 import { moduleStamp } from '../core/modules/morphology';
 import { buildSpecimen, specimenFontSize } from '../core/pipeline';
+import type { Contours } from '../core/types';
 import { renderSvgPreview, updateSvgSelection } from '../preview/svg';
 import type { SelOverlay } from '../preview/selection';
 import { canvasToPngBlob, renderCanvas } from '../preview/raster';
@@ -20,6 +21,15 @@ export type EngineDom = {
   onFontSize?: (px: number) => void;
   onAfterDraw?: () => void;
   statusMessage?: (kind: 'empty' | 'missing-font' | 'missing-glyph' | null) => string;
+  /** Optional — avoid hardcoding #text focus. */
+  isTextFocused?: () => boolean;
+};
+
+export type DrawFrame = {
+  width: number;
+  height: number;
+  lamina: Contours;
+  pathD: string;
 };
 
 export type Engine = {
@@ -29,6 +39,7 @@ export type Engine = {
   meta: () => Record<string, string>;
   setSelection: (start: number, end: number) => void;
   indexAtX: (clientX: number) => number;
+  getFrame: () => DrawFrame;
 };
 
 export function createEngine(state: AppState, dom: EngineDom): Engine {
@@ -37,14 +48,17 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
   let selStart = 0;
   let selEnd = 0;
   let lastPointCount = 0;
+  let frame: DrawFrame = { width: 0, height: 0, lamina: [], pathD: '' };
+
+  const textFocused = () =>
+    dom.isTextFocused?.() ?? document.activeElement?.id === 'text';
 
   const placeCaret = (x: number, y: number, h: number) => {
     const { caret } = dom;
     caret.style.left = `${Math.round(x)}px`;
     caret.style.top = `${Math.round(y)}px`;
     caret.style.height = `${Math.max(12, Math.round(h))}px`;
-    const focused = document.activeElement?.id === 'text';
-    caret.hidden = !focused || selStart !== selEnd;
+    caret.hidden = !textFocused() || selStart !== selEnd;
   };
 
   const currentSelection = (): SelOverlay | null => {
@@ -61,7 +75,7 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
   };
 
   const paintSelectionOnly = () => {
-    updateSvgSelection(dom.preview, currentSelection(), state.pathD);
+    updateSvgSelection(dom.preview, currentSelection(), frame.pathD);
     const cx = caretStops[selEnd] ?? caretStops[caretStops.length - 1] ?? 0;
     placeCaret(cx, caretBand.y, caretBand.h);
   };
@@ -79,15 +93,19 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
   };
 
   const clearStage = (W: number, H: number) => {
-    state.pathD = renderSvgPreview(dom.preview, {
+    frame = {
       width: W,
       height: H,
-      bg: state.bg,
-      fill: state.color,
       lamina: [],
-      selection: null
-    });
-    state.lamina = [];
+      pathD: renderSvgPreview(dom.preview, {
+        width: W,
+        height: H,
+        bg: state.bg,
+        fill: state.color,
+        lamina: [],
+        selection: null
+      })
+    };
     lastPointCount = 0;
     caretStops = [W * 0.5];
     caretBand = { y: H * 0.35, h: Math.min(W, H) * 0.2 };
@@ -97,8 +115,6 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
     const rect = dom.stage.getBoundingClientRect();
     const W = Math.max(320, Math.floor(rect.width));
     const H = Math.max(240, Math.floor(rect.height));
-    state.width = W;
-    state.height = H;
     const target = specimenFontSize(state.scale);
 
     if (!state.font) {
@@ -149,15 +165,19 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
     selStart = clamp(selStart, 0, n);
     selEnd = clamp(selEnd, 0, n);
 
-    state.lamina = result.lamina;
-    state.pathD = renderSvgPreview(dom.preview, {
+    frame = {
       width: W,
       height: H,
-      bg: state.bg,
-      fill: state.color,
       lamina: result.lamina,
-      selection: currentSelection()
-    });
+      pathD: renderSvgPreview(dom.preview, {
+        width: W,
+        height: H,
+        bg: state.bg,
+        fill: state.color,
+        lamina: result.lamina,
+        selection: currentSelection()
+      })
+    };
     lastPointCount = result.pointCount;
     dom.onFontSize?.(result.fontSize);
     placeCaret(caretStops[selEnd] ?? result.caret.x, result.caret.y, result.caret.h);
@@ -172,6 +192,7 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
   return {
     requestDraw,
     drawNow,
+    getFrame: () => frame,
     setSelection: (start, end) => {
       const n = specimenText(state, t().shapes[state.shape]).length;
       const nextStart = clamp(start, 0, n);
@@ -179,7 +200,7 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
       if (nextStart === selStart && nextEnd === selEnd) return;
       selStart = nextStart;
       selEnd = nextEnd;
-      if (state.pathD) paintSelectionOnly();
+      if (frame.pathD) paintSelectionOnly();
       else requestDraw();
     },
     indexAtX: (clientX) => {
@@ -188,11 +209,11 @@ export function createEngine(state: AppState, dom: EngineDom): Engine {
     },
     rasterizeBlob: async () => {
       renderCanvas(dom.raster, {
-        width: state.width,
-        height: state.height,
+        width: frame.width,
+        height: frame.height,
         bg: state.bg,
         fill: state.color,
-        lamina: state.lamina
+        lamina: frame.lamina
       });
       return canvasToPngBlob(dom.raster);
     },

@@ -22,7 +22,6 @@ export type Dict = {
   marginsAria: string;
   reshuffle: string;
   download: string;
-  downloadAria: string;
   png: string;
   svg: string;
   pdf: string;
@@ -34,15 +33,14 @@ export type Dict = {
   growthPause: string;
   specimensAria: string;
   about: string;
-  aboutGenerator: string;
   aboutLead: string;
   brandHome: string;
   creditsFrom: string;
   creditsAuthor: string;
   creditsTitle: string;
   creditsPub: string;
-  creditsMorph: string;
-  creditsMorphUrl: string;
+  creditsRefUrl: string;
+  creditsRefLink: string;
   creditsBy: string;
   creditsType: string;
   fontMissing: string;
@@ -54,15 +52,16 @@ export type Dict = {
   bootHint: string;
   bootCmd: string;
   bootOpen: string;
-  params: Record<string, string>;
+  growth: string;
   shapes: Record<string, string>;
   margins: Record<string, string>;
   specimens: ReadonlyArray<SpecimenBlock>;
 };
 
 /**
- * Specimen excerpts from Calvino’s Marcovaldo — ASCII-safe for FOSS Modern ∩ FOSS Serif
- * (no accented letters; both faces lack Latin diacritics in the subsetted files).
+ * Specimen excerpts from Calvino’s Marcovaldo.
+ * Typographic punctuation (‘’—…) is in FOSS Modern ∩ Serif; Latin diacritics
+ * are omitted in the masters, so accented spellings stay ASCII (citta, piu…).
  */
 const MARCOVALDO_SPECIMENS: ReadonlyArray<SpecimenBlock> = [
   {
@@ -77,7 +76,7 @@ const MARCOVALDO_SPECIMENS: ReadonlyArray<SpecimenBlock> = [
     sizePt: 26,
     text:
       'Gli itinerari che gli uccelli seguono migrando,\n' +
-      'verso sud o verso nord, d\'autunno o a primavera,\n' +
+      'verso sud o verso nord, d’autunno o a primavera,\n' +
       'traversano di rado la citta.\n' +
       'Gli stormi tagliano il cielo alti sopra i campi.'
   },
@@ -86,18 +85,18 @@ const MARCOVALDO_SPECIMENS: ReadonlyArray<SpecimenBlock> = [
     text:
       'Quel mattino lo sveglio il silenzio.\n' +
       'Marcovaldo si tiro su dal letto\n' +
-      'col senso di qualcosa di strano nell\'aria.\n' +
-      'Aperse la finestra: la citta non c\'era piu,\n' +
+      'col senso di qualcosa di strano nell’aria.\n' +
+      'Aperse la finestra: la citta non c’era piu,\n' +
       'era stata sostituita da un foglio bianco.'
   },
   {
     sizePt: 12,
     text:
-      'I rumori della citta che le notti d\'estate entrano dalle finestre aperte\n' +
+      'I rumori della citta che le notti d’estate entrano dalle finestre aperte\n' +
       'nelle stanze di chi non puo dormire per il caldo, i rumori veri della citta\n' +
-      'notturna, si fanno udire quando a una cert\'ora l\'anonimo frastuono dei\n' +
+      'notturna, si fanno udire quando a una cert’ora l’anonimo frastuono dei\n' +
       'motori dirada e tace, e dal silenzio vengon fuori discreti, nitidi, graduati\n' +
-      'secondo la distanza, un passo di nottambulo, il fruscio della bici d\'una\n' +
+      'secondo la distanza, un passo di nottambulo, il fruscio della bici d’una\n' +
       'guardia notturna, uno smorzato lontano schiamazzo.'
   },
   {
@@ -105,14 +104,14 @@ const MARCOVALDO_SPECIMENS: ReadonlyArray<SpecimenBlock> = [
     text:
       'Per chi ha in uggia la casa inospitale, il rifugio preferito nelle serate fredde\n' +
       'e sempre il cinema. La passione di Marcovaldo erano i film a colori, sullo\n' +
-      'schermo grande che permette d\'abbracciare i piu vasti orizzonti: praterie,\n' +
+      'schermo grande che permette d’abbracciare i piu vasti orizzonti: praterie,\n' +
       'montagne rocciose, foreste equatoriali, isole dove si vive coronati di fiori.\n' +
       'Vedeva il film due volte, usciva solo quando il cinema chiudeva; e col\n' +
       'pensiero continuava ad abitare quei paesaggi e a respirare quei colori.\n' +
-      'Ma il rincasare nella sera piovigginosa, l\'aspettare alla fermata il tram\n' +
+      'Ma il rincasare nella sera piovigginosa, l’aspettare alla fermata il tram\n' +
       'numero 30, il constatare che la sua vita non avrebbe conosciuto altro\n' +
       'scenario che tram, semafori, locali al seminterrato, fornelli a gas, roba\n' +
-      'stesa, magazzini e reparti d\'imballaggio, gli facevano svanire lo splendore\n' +
+      'stesa, magazzini e reparti d’imballaggio, gli facevano svanire lo splendore\n' +
       'del film in una tristezza sbiadita e grigia.'
   }
 ];
@@ -176,9 +175,8 @@ const IT: Dict = {
   textAria: 'Testo specimen',
   shapesAria: 'Forma',
   marginsAria: 'Margine',
-  reshuffle: 'Random',
+  reshuffle: 'Casuale',
   download: 'Download',
-  downloadAria: 'Download',
   png: 'PNG',
   svg: 'SVG',
   pdf: 'PDF',
@@ -186,19 +184,18 @@ const IT: Dict = {
   otfBusy: 'VF…',
   otfStatic: 'OTF',
   otfStaticBusy: 'OTF…',
-  growthPlay: 'Play crescita',
+  growthPlay: 'Avvia crescita',
   growthPause: 'Pausa crescita',
   specimensAria: 'Specimen tipografici',
-  about: 'About',
-  aboutGenerator: 'Generatore',
-  aboutLead: 'Marcovaldo is a WIP generative botanical type concept',
+  about: 'Info',
+  aboutLead: 'Marcovaldo è un concept tipografico generativo botanico',
   brandHome: 'Torna al generatore',
   creditsFrom: 'Estratti da:',
   creditsAuthor: 'Calvino, I. (1963).',
   creditsTitle: 'Marcovaldo ovvero Le stagioni in città',
   creditsPub: 'Einaudi.',
-  creditsMorph: 'Morfologia fogliare:',
-  creditsMorphUrl: 'https://it.wikipedia.org/wiki/Foglia#Morfologia',
+  creditsRefUrl: 'https://www.are.na/pasquale-de-sario/p-marcovaldo',
+  creditsRefLink: 'Are.na',
   creditsBy: 'Design + Development:',
   creditsType: 'Composto in:',
   fontMissing: 'Font non trovato',
@@ -210,14 +207,13 @@ const IT: Dict = {
   bootHint: 'Non aprire questo HTML come file. Avvia il server di sviluppo:',
   bootCmd: 'cd marcovaldo && npm run dev',
   bootOpen: 'Poi apri',
-  params: {
-    growth: 'Crescita'
-  },
+  growth: 'Crescita',
   shapes: SHAPE_IT,
   margins: MARGIN_IT,
   specimens: MARCOVALDO_SPECIMENS
 };
 
+/** English UI copy — British spelling / wording (en-GB). */
 const EN: Dict = {
   font: 'Typeface',
   faceSans: 'Sans',
@@ -227,9 +223,8 @@ const EN: Dict = {
   textAria: 'Specimen text',
   shapesAria: 'Shape',
   marginsAria: 'Margin',
-  reshuffle: 'Random',
+  reshuffle: 'Randomise',
   download: 'Download',
-  downloadAria: 'Download',
   png: 'PNG',
   svg: 'SVG',
   pdf: 'PDF',
@@ -241,15 +236,14 @@ const EN: Dict = {
   growthPause: 'Pause growth',
   specimensAria: 'Type specimens',
   about: 'About',
-  aboutGenerator: 'Generator',
-  aboutLead: 'Marcovaldo is a WIP generative botanical type concept',
+  aboutLead: 'Marcovaldo is a generative botanical typeface concept',
   brandHome: 'Back to generator',
   creditsFrom: 'Excerpts from:',
   creditsAuthor: 'Calvino, I. (1963).',
   creditsTitle: 'Marcovaldo, or The Seasons in the City',
   creditsPub: 'Einaudi.',
-  creditsMorph: 'Leaf morphology:',
-  creditsMorphUrl: 'https://en.wikipedia.org/wiki/Leaf_shape',
+  creditsRefUrl: 'https://www.are.na/pasquale-de-sario/p-marcovaldo',
+  creditsRefLink: 'Are.na',
   creditsBy: 'Design + Development:',
   creditsType: 'Typeset in:',
   fontMissing: 'Font not found',
@@ -258,12 +252,10 @@ const EN: Dict = {
   points: 'points',
   langSwitch: 'Italiano',
   siteUrl: 'https://pasqualedesario.eu/?lang=en',
-  bootHint: 'Do not open this HTML as a file. Start the dev server:',
+  bootHint: 'Do not open this HTML as a file. Start the development server:',
   bootCmd: 'cd marcovaldo && npm run dev',
   bootOpen: 'Then open',
-  params: {
-    growth: 'Growth'
-  },
+  growth: 'Growth',
   shapes: SHAPE_EN,
   margins: MARGIN_EN,
   specimens: MARCOVALDO_SPECIMENS
@@ -271,7 +263,8 @@ const EN: Dict = {
 
 const DICTS: Record<Lang, Dict> = { it: IT, en: EN };
 
-let lang: Lang = (localStorage.getItem('mv-lang') as Lang) || 'it';
+const storedLang = localStorage.getItem('mv-lang');
+let lang: Lang = storedLang === 'en' || storedLang === 'it' ? storedLang : 'it';
 
 export function getLang(): Lang {
   return lang;
@@ -284,7 +277,7 @@ export function t(): Dict {
 export function setLang(next: Lang): void {
   lang = next;
   localStorage.setItem('mv-lang', next);
-  document.documentElement.lang = next;
+  document.documentElement.lang = next === 'en' ? 'en-GB' : 'it';
 }
 
 export function toggleLang(): Lang {

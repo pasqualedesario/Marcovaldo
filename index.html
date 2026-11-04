@@ -4,21 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Marcovaldo</title>
-  <meta name="description" content="Marcovaldo — generatore tipografico a morfologia fogliare.">
+  <meta name="description" content="Marcovaldo — concept tipografico generativo a morfologia fogliare: forma e margine deformano le lettere; asse GROW ed export VF/OTF nel browser.">
+  <meta name="author" content="Pasquale de Sario">
+  <meta name="theme-color" content="#172713">
+  <link rel="canonical" href="https://pasqualedesario.github.io/Marcovaldo/">
+  <meta property="og:site_name" content="Marcovaldo">
   <meta property="og:title" content="Marcovaldo">
-  <meta property="og:description" content="Generatore tipografico a morfologia fogliare.">
+  <meta property="og:description" content="Concept tipografico generativo a morfologia fogliare: forma e margine deformano le lettere; asse GROW ed export VF/OTF.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="og.png">
+  <meta property="og:locale" content="it_IT">
+  <meta property="og:locale:alternate" content="en_GB">
+  <meta property="og:url" content="https://pasqualedesario.github.io/Marcovaldo/">
+  <meta property="og:image" content="https://pasqualedesario.github.io/Marcovaldo/og.png">
   <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image:width" content="2400">
+  <meta property="og:image:height" content="1260">
   <meta property="og:image:alt" content="Marcovaldo — generatore tipografico a morfologia fogliare">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Marcovaldo">
-  <meta name="twitter:description" content="Generatore tipografico a morfologia fogliare.">
-  <meta name="twitter:image" content="og.png">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="icon" type="image/png" sizes="192x192" href="favicon.png">
+  <meta name="twitter:description" content="Concept tipografico generativo a morfologia fogliare: forma e margine deformano le lettere; asse GROW ed export VF/OTF.">
+  <meta name="twitter:image" content="https://pasqualedesario.github.io/Marcovaldo/og.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preload" href="fonts/FOSS-Modern/FOSS-Modern-Bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/FOSS-Serif/FOSSSERIF-Regular.woff2" as="font" type="font/woff2" crossorigin>
@@ -71,8 +77,8 @@
           <input id="scale" class="ios" type="range" min="0" max="100" value="88" aria-label="Scala">
         </label>
         <label class="field tracking-field" title="Tracking">
-          <span data-i18n="tracking">Tracking</span> <span class="val" id="trackingval" aria-live="polite">0.00</span>
-          <input id="tracking" class="ios" type="range" min="0" max="100" value="50" aria-label="Tracking">
+          <span data-i18n="tracking">Tracking</span> <span class="val" id="trackingval" aria-live="polite">50</span>
+          <input id="tracking" class="ios" type="range" min="0" max="250" value="50" aria-label="Tracking">
         </label>
       </div>
     </div>
@@ -87,7 +93,7 @@
 
     <div class="dock" id="dock">
       <div class="dock-row dock-morph" id="dock-morph">
-        <button type="button" class="chip chip-rect" id="reshuffle" data-i18n="reshuffle">Random</button>
+        <button type="button" class="chip chip-rect" id="reshuffle" data-i18n="reshuffle">Casuale</button>
         <button type="button" class="chip chip-rect" id="shapes-toggle" aria-expanded="false" aria-controls="shapes" data-i18n="shapesAria">Forma</button>
         <div class="chips morph-chips" id="shapes" role="group" aria-label="Forma" hidden></div>
         <button type="button" class="chip chip-rect" id="margins-toggle" aria-expanded="false" aria-controls="margins" data-i18n="marginsAria">Margine</button>
@@ -127,43 +133,43 @@
     <span class="lang-land" id="lang-land">
       <button class="chip lang-btn" id="lang" type="button" aria-label="Language">English</button>
     </span>
-    <button type="button" class="about-mark" id="about-open" aria-expanded="false" aria-controls="about-sheet" data-i18n-aria="about">About</button>
+    <button type="button" class="about-mark" id="about-open" aria-expanded="false" aria-controls="about-sheet">About</button>
     <span class="download-land" id="download-land" aria-hidden="true"></span>
   </footer>
 </div>
 
 <div class="about-sheet" id="about-sheet" role="dialog" aria-modal="true" aria-labelledby="about-title" hidden aria-hidden="true">
   <div class="about-panel" id="about-panel">
-    <header class="about-topbar">
-      <div class="about-top-left" aria-hidden="true"></div>
-      <button type="button" class="brand about-sheet-brand" id="about-brand" aria-label="Marcovaldo">Marcovaldo</button>
-      <div class="about-top-right">
-        <button type="button" class="chip about-generator" id="about-close" data-i18n="aboutGenerator">Generatore</button>
-      </div>
+    <header class="about-head" id="about-title">
+      <p class="about-kicker" data-i18n="aboutLead">Marcovaldo è un concept tipografico generativo botanico</p>
     </header>
-    <div class="about-body" id="about-title">
-      <p class="credits-lead" data-i18n="aboutLead">Marcovaldo is a WIP generative botanical type concept</p>
-      <p class="credits-note">
-        <span data-i18n="creditsFrom">Estratti da:</span><br>
-        <span data-i18n="creditsAuthor">Calvino, I. (1963).</span>
-        <em data-i18n="creditsTitle">Marcovaldo ovvero Le stagioni in città</em>.
-        <span data-i18n="creditsPub">Einaudi.</span>
-      </p>
-      <p class="credits-morph">
-        <span data-i18n="creditsMorph">Morfologia fogliare:</span><br>
-        <a class="credits-link" id="morph-link" href="https://it.wikipedia.org/wiki/Foglia#Morfologia" target="_blank" rel="noopener noreferrer">Wikipedia</a>
-      </p>
-      <p class="credits-by">
-        <span data-i18n="creditsBy">Design + Development:</span><br>
-        <a class="credits-link" id="site-link" href="https://pasqualedesario.eu/#it" target="_blank" rel="noopener noreferrer">Pasquale de Sario</a> (2026)
-      </p>
-      <p class="credits-type">
-        <span data-i18n="creditsType">Composto in:</span><br>
-        <a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Modern</a><span class="credits-plus" aria-hidden="true"> + </span><a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Serif</a>
-      </p>
+
+    <div class="about-hero">
+      <button type="button" class="brand about-sheet-brand" id="about-brand" aria-label="Marcovaldo">Marcovaldo</button>
     </div>
-    <footer class="about-foot">
-      <button type="button" class="chip lang-btn about-lang" id="about-lang" data-i18n="langSwitch">English</button>
+
+    <footer class="about-credits">
+      <div class="about-credits-col">
+        <p class="credits-note">
+          <span data-i18n="creditsFrom">Estratti da:</span><br>
+          <span data-i18n="creditsAuthor">Calvino, I. (1963).</span>
+          <em data-i18n="creditsTitle">Marcovaldo ovvero Le stagioni in città</em>.
+          <span data-i18n="creditsPub">Einaudi.</span>
+        </p>
+        <p class="credits-type">
+          <span data-i18n="creditsType">Composto in:</span><br>
+          <a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Modern</a><span class="credits-plus" aria-hidden="true"> + </span><a class="credits-link" href="https://www.foss-projects.com/typefaces" target="_blank" rel="noopener noreferrer">FOSS Serif</a>
+        </p>
+      </div>
+      <div class="about-credits-col">
+        <p class="credits-ref">
+          <a class="credits-link" id="ref-link" href="https://www.are.na/pasquale-de-sario/p-marcovaldo" target="_blank" rel="noopener noreferrer" data-i18n="creditsRefLink">Are.na</a>
+        </p>
+        <p class="credits-by">
+          <span data-i18n="creditsBy">Design + Development:</span><br>
+          <a class="credits-link" id="site-link" href="https://pasqualedesario.eu/#it" target="_blank" rel="noopener noreferrer">Pasquale de Sario</a> (2026)
+        </p>
+      </div>
     </footer>
   </div>
 </div>

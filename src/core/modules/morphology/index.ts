@@ -16,11 +16,38 @@ import {
 import { buildLaminaStamp, rotate2 } from './leaves';
 
 const MODULE_ID = 'leaf-morphology';
-const MODULE_VERSION = '3.0.0';
+/** Topology-stable: same buds/leaves at every growth; only amplitude changes (VF-safe). */
+const MODULE_VERSION = '3.3.0';
 
 export function moduleStamp(): string {
   return `${MODULE_ID}@${MODULE_VERSION}`;
 }
+
+/**
+ * Growth UI 0…1 → amplitude 0…1.
+ * Four thresholds (0 / 25 / 50 / 75 / 100): slow early cover, full burial unchanged at 1.
+ * Smooth within each quarter so the slider doesn’t stair-step.
+ * Also used to build `avar` so VF user coords track this curve.
+ */
+export function growthCurve01(t: number): number {
+  const x = Math.min(1, Math.max(0, t));
+  const xs = [0, 0.25, 0.5, 0.75, 1] as const;
+  // Fractions of max amp — keep ys[4] === 1 so growth 100 matches current look.
+  const ys = [0, 0.1, 0.26, 0.55, 1] as const;
+  let i = 0;
+  while (i < xs.length - 2 && x > xs[i + 1]!) i++;
+  const x0 = xs[i]!;
+  const x1 = xs[i + 1]!;
+  const y0 = ys[i]!;
+  const y1 = ys[i + 1]!;
+  const u = x1 <= x0 ? 1 : (x - x0) / (x1 - x0);
+  return y0 + (y1 - y0) * ss(0, 1, u);
+}
+
+export type MorphOpts = {
+  /** Chaikin polish passes per leaf (preview default 2; export often 0–1). */
+  chaikinPasses?: number;
+};
 
 export type MorphologySpec = {
   shape: LeafShape;
@@ -179,196 +206,98 @@ function pickBuds(
 }
 
 /**
- * Graft leaves along glyph edges. Bases sink into the fill (no gap);
- * length/lean/curl vary so the bush reads organic, not stamped.
+ * Every bud emits one leaf — no random dropout (topology lock for preview = OTF = VF).
+ * Size/lean from index only so masters at GROW 0 and 100 share contour counts.
  */
 function growFoliage(
   buds: EdgeSample[],
   opts: {
     amp: number;
-    grow: number;
     shape: LeafShape;
     margin: LeafMargin;
     wantPositive: boolean;
     R: () => number;
+    chaikinPasses: number;
   }
 ): Contours {
-  const { amp, grow, shape, margin, wantPositive, R } = opts;
+  const { amp, shape, margin, wantPositive, R, chaikinPasses } = opts;
   const out: Contours = [];
-  if (!buds.length) return out;
+  if (!buds.length || amp < 1e-6) return out;
 
-  const leanN = makeNoise1D(R, Math.max(5, Math.round(buds.length / 8)));
-  const leanN2 = makeNoise1D(R, Math.max(7, Math.round(buds.length / 5)));
-  // Sparse buds early → dense bush late (Primavera GROW feel).
-  const keep = 0.32 + grow * 0.62;
   const group = shapeGroup(shape);
+  // Keep visual mass similar across silhouettes (needles were too thin; broad too fat).
   const widthScale =
-    group === 'needle' ? 0.42
-      : group === 'compound' ? 0.68
-        : group === 'broad' ? 0.82
-          : 0.68;
+    group === 'needle' ? 0.72
+      : group === 'compound' ? 0.78
+        : group === 'broad' || group === 'flabellate' ? 0.84
+          : 0.8;
+  // Compound leaflets are individually smaller — bump stem length so coverage matches.
+  const groupLen = group === 'compound' ? 1.18 : group === 'needle' ? 1.08 : 1;
 
   for (let i = 0; i < buds.length; i++) {
     const s = buds[i]!;
-    if (R() > keep) continue;
-    if (s.field < 0.1 && R() < 0.3) continue;
-
-    const phase = i / buds.length;
-    const field = 0.5 + 0.55 * s.field;
-    // Wide size scatter — short buds next to long runners.
-    const sizeRoll = R();
-    const sizeMul =
-      sizeRoll < 0.18 ? 0.35 + R() * 0.3
-        : sizeRoll > 0.82 ? 1.05 + R() * 0.55
-          : 0.65 + R() * 0.55;
-    const len = amp * field * (0.32 + grow * 1.1) * sizeMul;
-    if (len < amp * 0.1) continue;
-
-    // Irregular lean (no left/right parade).
-    const lean =
-      leanN(phase) * (0.55 + grow * 0.7) +
-      leanN2(phase * 1.7) * 0.45 +
-      (R() - 0.5) * (0.7 + grow * 0.6);
+    const u = (i * 0.6180339887) % 1;
+    // Tighter size band so growth reads evenly along the outline.
+    const sizeMul = 0.82 + u * 0.36;
+    const field = 0.62 + 0.38 * s.field;
+    const len = Math.max(amp * 0.22, amp * field * 0.92 * sizeMul) * groupLen;
+    const lean = (u - 0.5) * 0.95 + (s.field - 0.5) * 0.35;
     const dir = rotate2(s.nx, s.ny, lean);
-
-    // Sink base into the letter so lamina overlaps the fill — no halo gap.
-    const sink = len * (0.14 + R() * 0.12);
-    const slide = (R() - 0.5) * len * 0.22;
-    const ox = s.x - s.nx * sink + s.tx * slide;
-    const oy = s.y - s.ny * sink + s.ty * slide;
-
+    const sink = len * 0.18;
+    const ox = s.x - s.nx * sink;
+    const oy = s.y - s.ny * sink;
+    // Burn R so stamp RNG stays aligned across growth masters.
+    const Rr = rng(`leaf|${i}|${(R() * 1e9) | 0}`);
     const leaves = buildLaminaStamp(
       shape,
       margin,
       { x: ox, y: oy },
       len,
-      widthScale * (0.65 + R() * 0.55),
+      widthScale * (0.88 + u * 0.22),
       dir.x,
       dir.y,
-      R
+      Rr,
+      chaikinPasses
     );
     for (const leaf of leaves) {
       if (leaf.length >= 3) out.push(matchWinding(leaf, wantPositive));
-    }
-
-    // Occasional twin bud from the same node (clustered, less regular).
-    if (R() < 0.12 + grow * 0.18) {
-      const lean2 = lean + (R() < 0.5 ? -1 : 1) * (0.4 + R() * 0.9);
-      const dir2 = rotate2(s.nx, s.ny, lean2);
-      const len2 = len * (0.4 + R() * 0.45);
-      const twins = buildLaminaStamp(
-        shape,
-        margin,
-        {
-          x: ox + s.tx * (R() - 0.5) * len * 0.15,
-          y: oy + s.ty * (R() - 0.5) * len * 0.15
-        },
-        len2,
-        widthScale * (0.55 + R() * 0.4),
-        dir2.x,
-        dir2.y,
-        R
-      );
-      for (const leaf of twins) {
-        if (leaf.length >= 3) out.push(matchWinding(leaf, wantPositive));
-      }
     }
   }
   return out;
 }
 
 /**
- * Growth 0 = intact letter.
- * Growth rises = foliage along outlines (Primavera bush), leaf shape/margin vary the flora.
- * Letter contours are always kept so the form stays recognizable until dense cover.
+ * Single morphology for stage, OTF, and VF masters (Primavera contract).
+ * Fixed bud sites; only leaf amplitude follows growth (0 = tiny, 1 = full).
+ * `seed` must NOT include growth — otherwise masters diverge.
  */
 export function applyMorphology(
   contours: Contours,
   params: BotanicalParams,
   fontSize: number,
   seed: string,
-  spec: MorphologySpec
+  spec: MorphologySpec,
+  opts?: MorphOpts
 ): Contours {
-  const g = Math.min(1, Math.max(0, params.growth * 0.01));
-  const plain: Contours = [];
-  for (const c of contours) {
-    if (c.length >= 3) plain.push(c.slice());
-  }
-  if (g <= 0 || !plain.length) return plain;
-
-  // Slow early ease → letter stays clear; late growth densifies into a bush.
-  const grow = ss(0, 1, Math.pow(g, 0.82));
-  const shape = spec.shape;
-  const margin = clampMargin(shape, spec.margin);
-  const group = shapeGroup(shape);
-
-  const baseAmp =
-    group === 'needle' ? 0.055
-      : group === 'compound' ? 0.09
-        : group === 'broad' || shape === 'flabellate' ? 0.085
-          : 0.07;
-  // Denser buds as growth rises (Primavera “hedgerow” packing).
-  const baseSpacing =
-    group === 'needle' ? 0.038
-      : group === 'compound' ? 0.055
-        : 0.048;
-
-  const amp = baseAmp * fontSize * (0.55 + grow * 1.35);
-  const spacing = fontSize * Math.max(0.014, baseSpacing * (1.55 - grow * 0.95));
-
-  let wantPositive = true;
-  let bestAbs = 0;
-  for (const c of plain) {
-    const a = signedArea(c);
-    if (Math.abs(a) > bestAbs) {
-      bestAbs = Math.abs(a);
-      wantPositive = a > 0;
-    }
-  }
-
-  const R = rng(seed);
-  // Letter first — counters keep their opposite winding under nonzero fill.
-  const lamina: Contours = plain.map((c) => c.slice());
-
-  for (let i = 0; i < plain.length; i++) {
-    const c = plain[i]!;
-    const area = signedArea(c);
-    const isHole = (area > 0) !== wantPositive;
-    // Outer edges grow outward; hole edges grow into the counter (bush fills in).
-    const intoEmpty: 1 | -1 = isHole ? -1 : 1;
-    const Rc = rng(`${seed}|e${i}|${(R() * 1e9) | 0}`);
-    const { samples, length } = sampleEdge(c, Math.max(0.6, spacing * 0.35), intoEmpty);
-    if (!samples.length) continue;
-    paintField(samples, Rc);
-    // Holes get slightly sparser buds so counters don't vanish too early.
-    const edgeSpacing = spacing * (isHole ? 1.25 - grow * 0.2 : 1);
-    const buds = pickBuds(samples, length, edgeSpacing, Rc);
-    const flora = growFoliage(buds, {
-      amp: amp * (isHole ? 0.75 : 1),
-      grow,
-      shape,
-      margin,
-      wantPositive,
-      R: Rc
-    });
-    for (const leaf of flora) lamina.push(leaf);
-  }
-
-  return lamina;
+  return morphAtGrowth(
+    contours,
+    growthCurve01(params.growth * 0.01),
+    fontSize,
+    seed,
+    spec,
+    opts
+  );
 }
 
-/**
- * VF-safe morphology: fixed bud sites + leaf topology; only amplitude follows growth.
- * Masters at growth 0 and 1 share contour counts / can be resampled to equal point counts.
- */
-export function applyMorphologyStable(
+function morphAtGrowth(
   contours: Contours,
-  growth01: number,
+  grow: number,
   fontSize: number,
   seed: string,
-  spec: MorphologySpec
+  spec: MorphologySpec,
+  opts?: MorphOpts
 ): Contours {
-  const grow = Math.min(1, Math.max(0, growth01));
+  const chaikinPasses = opts?.chaikinPasses ?? 2;
   const plain: Contours = [];
   for (const c of contours) {
     if (c.length >= 3) plain.push(c.slice());
@@ -377,20 +306,14 @@ export function applyMorphologyStable(
 
   const shape = spec.shape;
   const margin = clampMargin(shape, spec.margin);
-  const group = shapeGroup(shape);
-  const baseAmp =
-    group === 'needle' ? 0.055
-      : group === 'compound' ? 0.09
-        : group === 'broad' || shape === 'flabellate' ? 0.085
-          : 0.07;
-  const baseSpacing =
-    group === 'needle' ? 0.038
-      : group === 'compound' ? 0.055
-        : 0.048;
+  // One amplitude + spacing for every shape — growth 100 should bury the letter equally.
+  const baseAmp = 0.125;
+  const baseSpacing = 0.04;
 
-  // Pack at max density; scale leaf length by growth (tiny at 0, full at 1).
-  const spacing = fontSize * Math.max(0.014, baseSpacing * 0.6);
-  const amp = baseAmp * fontSize * (0.06 + grow * 1.84);
+  // Pack at max density (growth does not add/remove buds); scale leaf length.
+  // At grow=1 amp ≈ 0.53×em → leaves ~0.3×em, letterform no longer readable.
+  const spacing = fontSize * Math.max(0.016, baseSpacing * 0.82);
+  const amp = baseAmp * fontSize * (0.05 + grow * 4.2);
 
   let wantPositive = true;
   let bestAbs = 0;
@@ -410,75 +333,23 @@ export function applyMorphologyStable(
     const area = signedArea(c);
     const isHole = (area > 0) !== wantPositive;
     const intoEmpty: 1 | -1 = isHole ? -1 : 1;
-    const Rc = rng(`${seed}|vf|e${i}`);
+    const Rc = rng(`${seed}|e${i}`);
     const { samples, length } = sampleEdge(c, Math.max(0.6, spacing * 0.35), intoEmpty);
     if (!samples.length) continue;
     paintField(samples, Rc);
     const buds = pickBuds(samples, length, spacing * (isHole ? 1.2 : 1), Rc);
-    const flora = growFoliageStable(buds, {
+    const flora = growFoliage(buds, {
       amp: amp * (isHole ? 0.75 : 1),
       shape,
       margin,
       wantPositive,
-      R: Rc
+      R: Rc,
+      chaikinPasses
     });
     for (const leaf of flora) lamina.push(leaf);
   }
 
   return lamina;
-}
-
-/** Every bud emits one leaf — no random dropout (VF topology lock). */
-function growFoliageStable(
-  buds: EdgeSample[],
-  opts: {
-    amp: number;
-    shape: LeafShape;
-    margin: LeafMargin;
-    wantPositive: boolean;
-    R: () => number;
-  }
-): Contours {
-  const { amp, shape, margin, wantPositive, R } = opts;
-  const out: Contours = [];
-  if (!buds.length || amp < 1e-6) return out;
-
-  const group = shapeGroup(shape);
-  const widthScale =
-    group === 'needle' ? 0.42
-      : group === 'compound' ? 0.68
-        : group === 'broad' ? 0.82
-          : 0.68;
-
-  for (let i = 0; i < buds.length; i++) {
-    const s = buds[i]!;
-    // Deterministic size from index — same for every growth master.
-    const u = (i * 0.6180339887) % 1;
-    const sizeMul = 0.55 + u * 0.7;
-    const field = 0.45 + 0.55 * s.field;
-    const len = Math.max(amp * 0.12, amp * field * 0.85 * sizeMul);
-    const lean = (u - 0.5) * 1.1 + (s.field - 0.5) * 0.4;
-    const dir = rotate2(s.nx, s.ny, lean);
-    const sink = len * 0.18;
-    const ox = s.x - s.nx * sink;
-    const oy = s.y - s.ny * sink;
-    // Burn R draws so stamp RNG stays aligned across masters.
-    const Rr = rng(`vf-leaf|${i}|${(R() * 1e9) | 0}`);
-    const leaves = buildLaminaStamp(
-      shape,
-      margin,
-      { x: ox, y: oy },
-      len,
-      widthScale * (0.75 + u * 0.35),
-      dir.x,
-      dir.y,
-      Rr
-    );
-    for (const leaf of leaves) {
-      if (leaf.length >= 3) out.push(matchWinding(leaf, wantPositive));
-    }
-  }
-  return out;
 }
 
 export { leafShapeIcon, leafMarginIcon } from './leaves';

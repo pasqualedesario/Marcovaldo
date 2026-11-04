@@ -4,17 +4,15 @@ export const clamp = (n: number, a: number, b: number): number =>
 /** CSS pt → CSS px (96 dpi). */
 export const PT_TO_PX = 96 / 72;
 
-/** Map tracking slider 0–100 → em (−0.08 … +0.16), midpoint 50 = 0. */
-export function trackingEm(pct: number): number {
-  const t = clamp(pct, 0, 100);
-  if (t <= 50) return -0.08 * (1 - t / 50);
-  return 0.16 * ((t - 50) / 50);
-}
+/** Tracking slider range (midpoint = 0em letter-spacing). */
+export const TRACKING_MAX = 250;
+export const TRACKING_MID = 50;
 
-export function formatTrackingEm(pct: number): string {
-  const em = trackingEm(pct);
-  const sign = em > 0 ? '+' : '';
-  return `${sign}${em.toFixed(2)}`;
+/** Map tracking slider → em (−0.08 … +0.64); TRACKING_MID = 0. */
+export function trackingEm(value: number): number {
+  const t = clamp(value, 0, TRACKING_MAX);
+  if (t <= TRACKING_MID) return -0.08 * (1 - t / TRACKING_MID);
+  return 0.16 * ((t - TRACKING_MID) / TRACKING_MID);
 }
 
 /** Index of the stop nearest to `x` in a monotonic caret-stop list. */

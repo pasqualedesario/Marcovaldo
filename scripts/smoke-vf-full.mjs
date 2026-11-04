@@ -21,7 +21,6 @@ async function main() {
     basename: 'smoke-marcovaldo',
     fontName: font.name,
     font,
-    params: { growth: 50, scale: 50, tracking: 50 },
     morph: { shape: DEFAULT_SHAPE, margin: DEFAULT_MARGIN },
     offset: 42,
     charset: ' ABCMNOabcjwx01289.,',
@@ -44,24 +43,37 @@ async function main() {
       '-c',
       `
 from fontTools.ttLib import TTFont
-from fontTools.varLib import mutator
+from fontTools.varLib import instancer
 f = TTFont(${JSON.stringify(outPath)})
-assert 'fvar' in f and 'gvar' in f
+assert 'fvar' in f and 'gvar' in f and 'STAT' in f
+os2 = f.getTableData('OS/2')
+assert len(os2) == 96, len(os2)
 ax = f['fvar'].axes[0]
 assert ax.axisTag == 'GROW', ax.axisTag
+assert len(f['fvar'].instances) >= 2
 cmap = f.getBestCmap()
 need = [ord(c) for c in 'ABCMNOabcjwx01289']
 missing = [chr(c) for c in need if c not in cmap]
 assert not missing, missing
-inst = mutator.instantiateVariableFont(f, {'GROW': 100})
-glyf = inst['glyf']
-for name in inst.getGlyphOrder():
+for gval in (0, 50, 100):
+    inst = instancer.instantiateVariableFont(f, {'GROW': gval}, inplace=False)
+    glyf = inst['glyf']
+    for name in inst.getGlyphOrder():
+        g = glyf[name]
+        if getattr(g, 'numberOfContours', 0) < 1: continue
+        g.recalcBounds(glyf)
+        assert abs(g.xMin) < 30000 and abs(g.xMax) < 30000, (name, gval, g.xMin, g.xMax)
+        assert abs(g.yMin) < 30000 and abs(g.yMax) < 30000, (name, gval, g.yMin, g.yMax)
+# point counts match between default glyf and gvar
+gv = f['gvar']
+glyf = f['glyf']
+for name, vars_ in gv.variations.items():
     g = glyf[name]
     if getattr(g, 'numberOfContours', 0) < 1: continue
-    g.recalcBounds(glyf)
-    assert abs(g.xMin) < 30000 and abs(g.xMax) < 30000, (name, g.xMin, g.xMax)
-    assert abs(g.yMin) < 30000 and abs(g.yMax) < 30000, (name, g.yMin, g.yMax)
-print('full ok glyphs', len(cmap), 'axis GROW', ax.minValue, ax.defaultValue, ax.maxValue)
+    n = len(g.coordinates) + 4  # phantom points
+    # at least one tuple
+    assert vars_, name
+print('full ok glyphs', len(cmap), 'OS/2', len(os2), 'axis GROW', ax.minValue, '→', ax.maxValue)
 `
     ],
     { encoding: 'utf8' }

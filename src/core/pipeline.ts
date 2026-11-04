@@ -3,13 +3,13 @@ import { boundsOf, countPoints, flattenPath, transformContours } from './path/op
 import {
   applyMorphology,
   moduleStamp,
-  type LeafMargin,
-  type LeafShape,
-  type MorphologySpec
+  type MorphologySpec,
+  type MorphOpts
 } from './modules/morphology';
 import { textToPath, type LoadedFont, type TextLayout } from '../font/load';
 import { cacheGet, cacheSet } from './deformCache';
 import { PT_TO_PX, trackingEm } from '../lib/math';
+import { FLATTEN as FLATTEN_STEPS } from '../export/outlineDensity';
 
 export type SpecimenInput = {
   font: LoadedFont;
@@ -24,9 +24,10 @@ export type SpecimenInput = {
 const MIN_SIZE_PT = 5;
 /** Absolute ceiling — may overflow the stage (clipped by viewport). */
 const MAX_SIZE_PT = 500;
-const FLATTEN_STEPS = 8;
 const SPECIMEN_LEADING = 1.1;
 const OPEN_QUALITY_PX = 96;
+/** Stage / open-specimen polish (export uses 1). */
+const PREVIEW_CHAIKIN = 2;
 
 export function specimenFontSize(scale: number): number {
   const minPx = MIN_SIZE_PT * PT_TO_PX;
@@ -35,48 +36,76 @@ export function specimenFontSize(scale: number): number {
   return minPx + (maxPx - minPx) * t;
 }
 
-/** Open-specimen / brand fingerprint — only growth affects morphology. */
-export function growthKey(growth: number): string {
+/** Quantize growth for cache / paint fingerprints. */
+function growthKey(growth: number): string {
   return String(growth | 0);
 }
 
-export function morphKey(morph: MorphologySpec): string {
+function morphKey(morph: MorphologySpec): string {
   return `${morph.shape}|${morph.margin}`;
+}
+
+/** Shared fingerprint for brand + specimen paint caches. */
+export function paintFingerprint(parts: {
+  fontName: string;
+  morph: MorphologySpec;
+  offset: number;
+  growth: number;
+  text: string;
+  size: number | string;
+  extra?: string;
+}): string {
+  return [
+    parts.fontName,
+    morphKey(parts.morph),
+    parts.offset,
+    growthKey(parts.growth),
+    parts.text,
+    parts.size,
+    parts.extra ?? ''
+  ].join('|');
 }
 
 /**
  * Deform any string at `fontSize` (canvas Y-down). Shared by stage + OTF charset.
  * Cache key uses growth + layout advance (tracking) — scale is already in fontSize.
  */
-export function deformText(
+function deformText(
   font: LoadedFont,
   text: string,
   params: BotanicalParams,
   morph: MorphologySpec,
   offset: number,
   fontSize: number,
-  layout?: TextLayout
+  layout?: TextLayout,
+  morphOpts?: MorphOpts,
+  flatPre?: Contours
 ): Contours | null {
   const raw = layout ?? textToPath(font.face, text, fontSize);
   if (!raw.commands.length) return null;
 
-  const seed = [
+  // Morph RNG seed must omit growth — buds/topology stay fixed; amp follows params.growth.
+  const morphSeed = [
     moduleStamp(),
     morphKey(morph),
     font.name,
     offset,
     text,
-    growthKey(params.growth),
     fontSize.toFixed(2),
     raw.advanceUnits.toFixed(2)
   ].join('|');
-  const cached = cacheGet(seed);
+  const polish = morphOpts?.chaikinPasses ?? PREVIEW_CHAIKIN;
+  const cacheSeed = `${morphSeed}|g${growthKey(params.growth)}|c${polish}`;
+  const cached = cacheGet(cacheSeed);
   if (cached) return cached;
 
-  const flat = flattenPath(raw, FLATTEN_STEPS);
+  const flat = flatPre ?? flattenPath(raw, FLATTEN_STEPS);
   if (!flat.length) return null;
-  const deformed = applyMorphology(flat, params, fontSize, seed, morph);
-  cacheSet(seed, deformed);
+  const deformed = applyMorphology(flat, params, fontSize, morphSeed, morph, {
+    ...morphOpts,
+    chaikinPasses: polish
+  });
+  cacheSet(cacheSeed, deformed);
   return deformed;
 }
 
@@ -85,16 +114,19 @@ export function deformGlyph(
   char: string,
   params: BotanicalParams,
   morph: MorphologySpec,
-  offset: number
-): { lamina: Contours; advance: number } | null {
+  offset: number,
+  morphOpts?: MorphOpts
+): { lamina: Contours; advance: number; letterCount: number } | null {
   const upm = font.face.unitsPerEm || 1000;
   const layout = textToPath(font.face, char, upm);
   const advance = Math.max(1, Math.round(layout.advanceUnits || upm * 0.3));
-  if (char === ' ' || !layout.commands.length) return { lamina: [], advance };
+  if (char === ' ' || !layout.commands.length) return { lamina: [], advance, letterCount: 0 };
 
-  const lamina = deformText(font, char, params, morph, offset, upm, layout);
-  if (!lamina?.length) return { lamina: [], advance };
-  return { lamina, advance };
+  const flat = flattenPath(layout, FLATTEN_STEPS);
+  const letterCount = flat.length;
+  const lamina = deformText(font, char, params, morph, offset, upm, layout, morphOpts, flat);
+  if (!lamina?.length) return { lamina: [], advance, letterCount };
+  return { lamina, advance, letterCount };
 }
 
 function mapStops(raw: readonly number[], x0: number, width: number): number[] {
@@ -102,14 +134,29 @@ function mapStops(raw: readonly number[], x0: number, width: number): number[] {
   return raw.map((x) => x0 + (x / total) * width);
 }
 
+/** Reuse glyph layout across growth-only frames (play scrub). */
+let stageLayoutKey = '';
+let stageLayout: TextLayout | null = null;
+
 /** Stage preview: deform once, then affine-fit. */
 export function buildSpecimen(input: SpecimenInput): FitResult | null {
   const { font, text, params, morph, offset, width: W, height: H } = input;
   if (!text) return null;
 
   const fontSize = specimenFontSize(params.scale);
-  const layout = textToPath(font.face, text, fontSize, trackingEm(params.tracking));
-  const deformed = deformText(font, text, params, morph, offset, fontSize, layout);
+  const layoutKey = `${font.name}|${text}|${fontSize.toFixed(2)}|${params.tracking}|${params.scale}`;
+  let layout: TextLayout;
+  if (layoutKey === stageLayoutKey && stageLayout) {
+    layout = stageLayout;
+  } else {
+    layout = textToPath(font.face, text, fontSize, trackingEm(params.tracking));
+    stageLayoutKey = layoutKey;
+    stageLayout = layout;
+  }
+
+  const deformed = deformText(font, text, params, morph, offset, fontSize, layout, {
+    chaikinPasses: PREVIEW_CHAIKIN
+  });
   if (!deformed?.length) return null;
 
   const b = boundsOf(deformed);
@@ -187,14 +234,15 @@ export function buildOpenSpecimen(input: {
   }
 
   const layout = textToPath(font.face, text, fontSize);
-  const deformed = deformText(font, text, params, morph, offset, fontSize, layout);
+  const deformed = deformText(font, text, params, morph, offset, fontSize, layout, {
+    chaikinPasses: PREVIEW_CHAIKIN
+  });
   if (!deformed?.length) return null;
 
   const b = boundsOf(deformed);
   const bw = Math.max(1, b.x2 - b.x1);
   const padY = fontSize * 0.08;
-  // Keep metrics baseline, then grow the line box so morphology stays inside
-  // (avoids overflow stealing pointer hits from the next specimen line).
+  // Keep metrics baseline, then grow the line box so morphology stays inside.
   const y1 = b.y1 + baseline;
   const y2 = b.y2 + baseline;
   const top = Math.min(0, y1 - padY);
@@ -212,5 +260,3 @@ export function buildOpenSpecimen(input: {
     caretStops: wantCaret ? mapStops(layout.caretStops, padX, bw) : []
   };
 }
-
-export type { LeafShape, LeafMargin, MorphologySpec };
