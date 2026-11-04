@@ -715,23 +715,26 @@ body.about-open{
     max-height:none;
   }
 
+  /* overflow:visible so the absolute Download tray can paint above the dock. */
   .dock{
     gap:var(--gap);
     width:100%;
     min-height:0;
-    max-height:min(38dvh, 320px);
-    overflow-x:hidden;
-    overflow-y:auto;
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain;
+    max-height:none;
+    overflow:visible;
   }
 
-  /* Toggle row first; chip trays full-width below (no display:contents interleave). */
+  /* Scroll only the morph chip area — not the whole dock (that clipped PNG–VF). */
   .dock-morph{
     display:flex;
     flex-wrap:wrap;
     align-items:center;
     gap:var(--gap);
+    max-height:min(32dvh, 280px);
+    overflow-x:hidden;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
   }
   /* Casuale · Forma · [forme] · Margine · [margini] — Margine always after open shapes. */
   .dock-morph #reshuffle{order:0}
