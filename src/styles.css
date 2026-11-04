@@ -650,6 +650,8 @@ body.about-open{
  * Only collapse what cannot fit (tracking) and size the brand/scale.
  */
 @media (max-width:720px){
+  /* Phones: generator only — full morph gallery OOMs Safari. */
+  .specimen-section{display:none!important}
   .workspace{
     height:calc(
       100dvh

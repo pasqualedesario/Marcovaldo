@@ -1,6 +1,7 @@
 import { contoursToSvgD } from '../core/path/ops';
 import { buildOpenSpecimen, paintFingerprint } from '../core/pipeline';
 import { applySelOverlay, createSelLayer, SVG_NS } from '../preview/selection';
+import { isMobile, MOBILE_MQ } from '../lib/device';
 import { createFrameScheduler, yieldToMain } from '../lib/schedule';
 import { nearestStopIndex, PT_TO_PX, selectionBounds } from '../lib/math';
 import { bindTextEdit } from '../lib/textEdit';
@@ -10,7 +11,6 @@ import type { AppState } from './state';
 import { morphSpec, paramsSnapshot } from './state';
 
 const BLOCK_MAX = 1200;
-const MOBILE_MQ = '(max-width: 720px)';
 
 type LineVisual = {
   wrap: HTMLElement;
@@ -39,10 +39,6 @@ type BlockModel = {
   lines: LineVisual[];
   fingerprint: string;
 };
-
-function isMobile(): boolean {
-  return window.matchMedia(MOBILE_MQ).matches;
-}
 
 function splitLines(text: string): string[] {
   return text.length ? text.split('\n') : [''];
@@ -271,15 +267,23 @@ function indexAtBlockPointer(block: BlockModel, clientX: number, clientY: number
 }
 
 /**
- * Live specimen gallery.
- * `getPaintGrowth` freezes GROW while the stage plays so blocks stay stills,
- * then catch up when play stops (avoids re-morphing every rAF).
+ * Live specimen gallery (desktop).
+ * On mobile the section is hidden — morphing every Calvino line OOM/crash Safari.
+ * `getPaintGrowth` freezes GROW while the stage plays so blocks stay stills.
  */
 export function mountSpecimens(
   root: HTMLElement,
   state: AppState,
   opts?: { getPaintGrowth?: () => number }
 ): { refresh: () => void; rebuild: () => void } {
+  const section = root.closest('.specimen-section') as HTMLElement | null;
+  if (isMobile()) {
+    if (section) section.hidden = true;
+    root.replaceChildren();
+    return { refresh: () => {}, rebuild: () => {} };
+  }
+  if (section) section.hidden = false;
+
   const blocks: BlockModel[] = [];
   let paintToken = 0;
   const paintGrowth = () => opts?.getPaintGrowth?.() ?? state.growth;

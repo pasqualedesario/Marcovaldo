@@ -31,9 +31,16 @@ const SPECIMEN_LEADING = 1.1;
  */
 const OPEN_QUALITY_PX = 48;
 const OPEN_QUALITY_MAX = 1.5;
-/** Stage polish. Gallery open-specimens use OPEN_CHAIKIN (cheaper). */
+/** Stage polish (desktop). Gallery open-specimens use OPEN_CHAIKIN. */
 const PREVIEW_CHAIKIN = 2;
 const OPEN_CHAIKIN = 1;
+/** Lowered on mobile via `setMobilePreview(true)`. */
+let stageChaikin = PREVIEW_CHAIKIN;
+
+/** Call once at boot — lighter stage morph on phones. */
+export function setMobilePreview(mobile: boolean): void {
+  stageChaikin = mobile ? OPEN_CHAIKIN : PREVIEW_CHAIKIN;
+}
 
 export function specimenFontSize(scale: number): number {
   const minPx = MIN_SIZE_PT * PT_TO_PX;
@@ -161,7 +168,7 @@ export function buildSpecimen(input: SpecimenInput): FitResult | null {
   }
 
   const deformed = deformText(font, text, params, morph, offset, fontSize, layout, {
-    chaikinPasses: PREVIEW_CHAIKIN
+    chaikinPasses: stageChaikin
   });
   if (!deformed?.length) return null;
 

@@ -7,9 +7,11 @@ import {
   type LeafShape
 } from '../core/modules/morphology';
 import { loadFontFromUrl, type LoadedFont } from '../font/load';
+import { isMobile } from '../lib/device';
 import { createDebouncedRaf } from '../lib/schedule';
 import { $, $canvas, $input, $svg, setRangePct } from '../lib/dom';
 import { clamp, TRACKING_MAX } from '../lib/math';
+import { setMobilePreview } from '../core/pipeline';
 import { bindTextEdit, setCollapsedRange } from '../lib/textEdit';
 import {
   DEFAULT_FACE,
@@ -289,6 +291,8 @@ function wireTextStage(opts: {
 export function mountApp(state: AppState): void {
   setLang(getLang());
   applyTheme(state);
+  const mobile = isMobile();
+  setMobilePreview(mobile);
 
   const stage = $('stage');
   const textEl = $input('text');
@@ -484,12 +488,14 @@ export function mountApp(state: AppState): void {
     paintBrand(brandEl, state, paintGrowth());
     focusEnd();
   });
-  // Warm the other face for snappy Sans/Serif switching.
-  for (const id of FACE_IDS) {
-    if (id === state.face) continue;
-    const def = faceDef(id);
-    void loadFontFromUrl(faceAssetUrl(def.file), def.label)
-      .then((font) => faceCache.set(id, font))
-      .catch(() => undefined);
+  // Warm the other face on desktop only — second OTF parse can tip mobile Safari over.
+  if (!mobile) {
+    for (const id of FACE_IDS) {
+      if (id === state.face) continue;
+      const def = faceDef(id);
+      void loadFontFromUrl(faceAssetUrl(def.file), def.label)
+        .then((font) => faceCache.set(id, font))
+        .catch(() => undefined);
+    }
   }
 }
