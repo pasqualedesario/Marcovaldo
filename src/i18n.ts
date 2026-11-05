@@ -41,6 +41,8 @@ export type Dict = {
   creditsPub: string;
   creditsRefUrl: string;
   creditsRefLink: string;
+  creditsGithubUrl: string;
+  creditsGithubLink: string;
   creditsBy: string;
   creditsType: string;
   fontMissing: string;
@@ -196,6 +198,8 @@ const IT: Dict = {
   creditsPub: 'Einaudi.',
   creditsRefUrl: 'https://www.are.na/pasquale-de-sario/p-marcovaldo',
   creditsRefLink: 'Are.na',
+  creditsGithubUrl: 'https://github.com/pasqualedesario/Marcovaldo',
+  creditsGithubLink: 'GitHub',
   creditsBy: 'Design + Development:',
   creditsType: 'Composto in:',
   fontMissing: 'Font non trovato',
@@ -244,6 +248,8 @@ const EN: Dict = {
   creditsPub: 'Einaudi.',
   creditsRefUrl: 'https://www.are.na/pasquale-de-sario/p-marcovaldo',
   creditsRefLink: 'Are.na',
+  creditsGithubUrl: 'https://github.com/pasqualedesario/Marcovaldo',
+  creditsGithubLink: 'GitHub',
   creditsBy: 'Design + Development:',
   creditsType: 'Typeset in:',
   fontMissing: 'Font not found',

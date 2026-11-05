@@ -75,4 +75,9 @@ export function applyStaticI18n(): void {
     ref.href = d.creditsRefUrl;
     ref.textContent = d.creditsRefLink;
   }
+  const github = document.getElementById('github-link') as HTMLAnchorElement | null;
+  if (github) {
+    github.href = d.creditsGithubUrl;
+    github.textContent = d.creditsGithubLink;
+  }
 }
