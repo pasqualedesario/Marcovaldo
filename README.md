@@ -4,6 +4,21 @@ Marcovaldo is a generative botanical typeface concept. Pick a leaf shape, from 1
 The specimen text comes from Italo Calvino’s Marcovaldo ovvero Le stagioni in città, where nature finds its way through the cracks of the city.
 Each configuration can be exported as an image (PNG, SVG, PDF), as a static (OTF) or variable font (TTF) with a GROW axis from 0 to 100 that follows the same growth curve as the tool.
 
+<table>
+  <tr>
+    <td align="center" width="70%">
+      <img src="docs/readme-desktop.png" alt="Marcovaldo desktop — generative specimen stage" />
+      <br /><sub>Desktop</sub>
+    </td>
+    <td align="center" width="30%">
+      <img src="docs/readme-about-mobile.png" alt="Marcovaldo About on mobile" />
+      <br /><sub>About · mobile</sub>
+    </td>
+  </tr>
+</table>
+
+On mobile the chrome is simplified and there is no editable specimen text; the stage stays a single word composition.
+
 ## Run
 
 ```bash
