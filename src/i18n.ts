@@ -188,7 +188,7 @@ const IT: Dict = {
   growthPause: 'Pausa crescita',
   specimensAria: 'Specimen tipografici',
   about: 'Info',
-  aboutLead: 'Marcovaldo è un concept tipografico generativo botanico',
+  aboutLead: 'Marcovaldo è un concept tipografico generativo basato sulla morfologia botanica',
   brandHome: 'Torna al generatore',
   creditsFrom: 'Estratti da:',
   creditsAuthor: 'Calvino, I. (1963).',
