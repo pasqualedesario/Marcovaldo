@@ -12,12 +12,12 @@ Each configuration can be exported as an image (PNG, SVG, PDF), as a static (OTF
     </td>
     <td align="center" width="30%">
       <img src="docs/readme-about-mobile.png" alt="Marcovaldo About on mobile" />
-      <br /><sub>About · mobile</sub>
+      <br /><sub>Mobile</sub>
     </td>
   </tr>
 </table>
 
-On mobile the chrome is simplified and there is no editable specimen text; the stage stays a single word composition.
+On mobile the chrome is simplified and there is no editable specimen text.
 
 ## Run
 
