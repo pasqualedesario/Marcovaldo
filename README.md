@@ -1,12 +1,8 @@
 # Marcovaldo
 
-Generative botanical type concept.
-
-**Live:** [pasqualedesario.github.io/Marcovaldo](https://pasqualedesario.github.io/Marcovaldo/)
-
-## Concept
-
-Pick a leaf shape and margin, tune growth, and watch letterforms morph while staying topology-stable (same contour point count). Specimen text can be typed or reshuffled. Exports bake the current morphology into static or variable fonts for use outside the generator.
+Marcovaldo is a generative botanical typeface concept. Pick a leaf shape, from 19 morphologies ranging from lanceolate to palmate, and a margin, from 8 types ranging from entire to serrate; then tune the growth, and the letterforms morph without losing their structure.
+The specimen text comes from Italo Calvino’s Marcovaldo ovvero Le stagioni in città, where nature finds its way through the cracks of the city.
+Each configuration can be exported as an image (PNG, SVG, PDF), as a static (OTF) or variable font (TTF) with a GROW axis from 0 to 100 that follows the same growth curve as the tool.
 
 ## Run
 
