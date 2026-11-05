@@ -436,6 +436,7 @@ export function mountApp(state: AppState): void {
 
   const applyLang = () => {
     applyStaticI18n();
+    about.syncPicturesLabel();
     if (isMorphBaseText(state.text)) {
       state.text = shapeBaseText(state.shape, t().shapes[state.shape]);
       textEl.value = state.text;

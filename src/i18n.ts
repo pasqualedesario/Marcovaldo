@@ -34,6 +34,10 @@ export type Dict = {
   specimensAria: string;
   about: string;
   aboutLead: string;
+  macros: string;
+  photosCreditsLead: string;
+  photosCreditsBy: string;
+  photosUnsplash: string;
   brandHome: string;
   creditsFrom: string;
   creditsAuthor: string;
@@ -191,6 +195,10 @@ const IT: Dict = {
   specimensAria: 'Specimen tipografici',
   about: 'Info',
   aboutLead: 'Marcovaldo è un concept tipografico generativo basato sulla morfologia botanica',
+  macros: 'Macro',
+  photosCreditsLead: 'Macro foglia:',
+  photosCreditsBy: 'Foto di:',
+  photosUnsplash: 'Unsplash',
   brandHome: 'Torna al generatore',
   creditsFrom: 'Estratti da:',
   creditsAuthor: 'Calvino, I. (1963).',
@@ -241,6 +249,10 @@ const EN: Dict = {
   specimensAria: 'Type specimens',
   about: 'About',
   aboutLead: 'Marcovaldo is a generative botanical typeface concept',
+  macros: 'Macro',
+  photosCreditsLead: 'Leaf macros:',
+  photosCreditsBy: 'Photos by:',
+  photosUnsplash: 'Unsplash',
   brandHome: 'Back to generator',
   creditsFrom: 'Excerpts from:',
   creditsAuthor: 'Calvino, I. (1963).',

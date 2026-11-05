@@ -1,7 +1,7 @@
 # Marcovaldo
 
 Marcovaldo is a generative botanical typeface concept. Pick a leaf shape, from 19 morphologies ranging from lanceolate to palmate, and a margin, from 8 types ranging from entire to serrate; then tune the growth, and the letterforms morph without losing their structure.
-The specimen text comes from Italo Calvino’s Marcovaldo ovvero Le stagioni in città, where nature finds its way through the cracks of the city.
+The specimen text comes from Italo Calvino’s *Marcovaldo ovvero Le stagioni in città*, where nature finds its way through the cracks of the city.
 Each configuration can be exported as an image (PNG, SVG, PDF), as a static (OTF) or variable font (TTF) with a GROW axis from 0 to 100 that follows the same growth curve as the tool.
 
 <table>
@@ -51,6 +51,10 @@ UI chrome is FOSS Modern; specimen face switches Sans / Serif. Typefaces: [FOSS 
 
 Vanilla TypeScript + Vite. No framework. Morphology core under `src/core/`; browser UI under `src/app/`; font writers under `src/export/`.
 
+## Photo credits
+
+Leaf macros: [Unsplash](https://unsplash.com/it/s/foto/leaf-macro?license=free). Photos by: Alan Emery, Andrew Lvov, Brunxs, David Clode, E.F. Taylor, Emanuel Haas, Frames For Your Heart, Greg Rosenke, Hasan Almasi, Jonathan Borba, Kiaan, Omid Armin, Oscar McGlone, Sebastian Schuster, Soubhagya Satpathy, Valentin Salja.
+
 ## License
 
-[MIT](./LICENSE). Calvino excerpts and FOSS typefaces retain their respective rights.
+[MIT](./LICENSE). Calvino excerpts, FOSS typefaces, and Unsplash photographs retain their respective rights.

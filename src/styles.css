@@ -58,14 +58,12 @@ button,input{font:inherit;color:inherit}
   border-radius:0;
 }
 :focus:not(:focus-visible){outline:none}
-.brand:focus-visible,
-.about-mark:focus-visible{
-  outline:calc(var(--gap) / 4) solid var(--accent);
-  outline-offset:calc(var(--gap) / 2);
-}
-.about-sheet :focus-visible{
-  outline-color:var(--fg);
-}
+/* Rings only while Tab/arrows are in use — pointer clears them. */
+body:not(.kb-focus) :focus-visible{outline:none !important}
+/* Programmatic focus (dialog restore, etc.) — no ring until next key nav. */
+.is-focus-quiet:focus,
+.is-focus-quiet:focus-visible{outline:none !important}
+.about-sheet :focus-visible{outline-color:var(--fg)}
 
 .app{
   display:flex;flex-direction:column;
@@ -116,8 +114,6 @@ button,input{font:inherit;color:inherit}
   -webkit-appearance:none;
   transition:color .18s ease;
 }
-.brand:focus:not(:focus-visible),
-.about-mark:focus:not(:focus-visible){outline:none}
 .brand-svg{
   display:block;
   height:1.15em;
@@ -304,8 +300,7 @@ body.is-busy #otf-static{opacity:.72;pointer-events:none}
 }
 
 .chips{display:flex;flex-wrap:wrap;gap:var(--gap);align-items:center}
-.chip,
-.specimen-chip{
+.chip{
   appearance:none;border:0;outline:0;box-shadow:none;
   display:inline-flex;align-items:center;justify-content:center;
   box-sizing:border-box;
@@ -314,8 +309,6 @@ body.is-busy #otf-static{opacity:.72;pointer-events:none}
   background:var(--chip);color:var(--ink);
   font:700 var(--fs-x)/1 var(--f);
   white-space:nowrap;
-}
-.chip{
   cursor:pointer;
   transition:background .15s,color .15s,opacity .15s;
 }
@@ -336,7 +329,12 @@ body.is-busy #otf-static{opacity:.72;pointer-events:none}
   overflow:visible;
 }
 .chip-icon path{fill:currentColor}
+/* Specimen size labels — naked text, no chip fill. */
 .specimen-chip{
+  appearance:none;border:0;margin:0;padding:0;
+  background:transparent;color:var(--fg);
+  font:700 var(--fs-x)/var(--lh-x) var(--f);
+  white-space:nowrap;
   pointer-events:none;
   user-select:none;
 }
@@ -530,15 +528,17 @@ input[type=range].ios::-moz-range-thumb{
   position:relative;
 }
 
-/* About — inverted palette; GSAP slides up from below (final section). */
+/* About — inverted palette; GSAP slides up from below. */
 .about-sheet{
-  /* Inverted page: sulphur yellow + olive; accent stays apricot for hover. */
-  --bg:var(--color-light);
-  --fg:var(--color-dark);
+  --bg:var(--color-dark);
+  --fg:var(--color-light);
   --accent:var(--color-accent);
-  --fg-muted:color-mix(in srgb,var(--color-dark) 72%,var(--color-light));
-  --chip:var(--color-dark);
-  --ink:var(--color-light);
+  --fg-muted:color-mix(in srgb,var(--color-light) 72%,var(--color-dark));
+  --chip:var(--color-light);
+  --ink:var(--color-dark);
+  --about-pic-blur:100px;
+  --about-scrim:transparent;
+  --about-scrim-a:0;
   position:fixed;
   inset:0;
   z-index:60;
@@ -548,34 +548,114 @@ input[type=range].ios::-moz-range-thumb{
   color:var(--fg);
   opacity:0;
   pointer-events:none;
-  overflow:auto;
-  -webkit-overflow-scrolling:touch;
-  will-change:transform;
+  overflow:hidden;
+  overscroll-behavior:none;
 }
 .about-sheet[hidden]{display:none !important}
-.about-sheet.is-open{
-  opacity:1;
-  pointer-events:auto;
+.about-sheet.is-open{opacity:1;pointer-events:auto}
+.about-sheet.is-closing{pointer-events:none}
+.about-sheet.pictures-shown{
+  --about-pic-blur:0;
+  --about-scrim:#000;
+  --about-scrim-a:.28;
 }
-.about-sheet.is-closing{
+.about-pictures,
+.about-pictures-scrim{
+  grid-area:1 / 1;
+  position:fixed;
+  inset:0;
   pointer-events:none;
+}
+.about-pictures{
+  z-index:0;
+  background:var(--color-dark);
+  filter:blur(var(--about-pic-blur));
+  transition:filter .5s ease;
+}
+.about-pictures-scrim{
+  z-index:1;
+  background:var(--about-scrim);
+  opacity:var(--about-scrim-a);
+  transition:opacity .5s ease, background-color .5s ease;
+}
+.about-pic{
+  position:absolute;
+  inset:0;
+  margin:0;
+  opacity:0;
+  filter:blur(10px) grayscale(1);
+  transition:opacity 1s ease, filter 1s ease;
+  z-index:0;
+}
+.about-pic.is-visible{
+  opacity:1;
+  filter:none;
+  z-index:1;
+}
+.about-pic-img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
 }
 .about-panel{
   grid-area:1 / 1;
   position:relative;
-  z-index:1;
-  min-height:100%;
-  min-height:100dvh;
+  z-index:2;
+  height:100dvh;
+  max-height:100dvh;
+  overflow:hidden;
   display:grid;
-  grid-template-rows:auto 1fr auto;
-  gap:calc(var(--gap) * 3);
+  grid-template-rows:minmax(0, 1fr) auto minmax(0, 1fr);
   padding:var(--pad-t) max(var(--pad), env(safe-area-inset-right, 0px)) var(--pad-b) max(var(--pad), env(safe-area-inset-left, 0px));
+}
+.about-upper{
+  display:grid;
+  grid-template-rows:auto minmax(0, 1fr);
+  min-height:0;
+}
+.about-pictures-bar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:0;
+}
+.about-pictures-toggle{
+  flex:none;
+}
+.about-foot{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  min-height:0;
+}
+.about-foot-inner{
+  display:flex;
+  flex-direction:column;
+  gap:var(--pad);
+  width:50vw;
+  max-width:100%;
+  margin:0 auto;
+}
+.about-photo-credits{
+  margin:0;
+  width:100%;
+  font:700 var(--fs-x)/var(--lh-x) var(--f);
+  color:var(--fg-muted);
+  text-align:center;
+  text-wrap:balance;
+}
+.about-photo-credits .credits-link{color:inherit}
+@media (hover:hover){
+  .about-photo-credits .credits-link:hover{color:var(--accent)}
+}
+@media (max-width:720px){
+  .about-photo-credits{display:none}
+  .about-foot-inner{width:100%}
 }
 .about-head{
   display:flex;
   flex-direction:column;
-  align-items:stretch;
-  gap:var(--gap);
   text-align:center;
   width:100%;
   margin:0;
@@ -583,37 +663,36 @@ input[type=range].ios::-moz-range-thumb{
 }
 .about-kicker{
   margin:0;
-  max-width:none;
   font:700 var(--fs-x)/var(--lh-x) var(--f);
   color:var(--fg);
   text-wrap:balance;
 }
-/* Center: large Marcovaldo wordmark. */
 .about-hero{
   display:grid;
   place-items:center;
   min-height:0;
   width:100%;
   padding:var(--pad) 0;
+  overflow:hidden;
 }
 .about-sheet-brand{
   color:var(--fg);
   max-width:100%;
+  max-height:100%;
 }
 .about-sheet-brand .brand-svg{
   max-width:min(92vw, 56rem);
+  max-height:100%;
+  width:auto;
   height:auto;
 }
-/* Bottom: 4 centered cols, half the viewport wide, on the baseline. */
 .about-credits{
   display:grid;
   grid-template-columns:repeat(4, minmax(0, 1fr));
   align-items:start;
   gap:var(--pad);
-  width:50vw;
-  max-width:100%;
-  margin:0 auto;
-  padding:0;
+  width:100%;
+  margin:0;
   font:700 var(--fs-x)/var(--lh-x) var(--f);
   color:var(--fg);
   text-align:center;
@@ -623,25 +702,15 @@ input[type=range].ios::-moz-range-thumb{
   min-width:0;
   text-wrap:balance;
 }
-.about-credits .credits-type{
-  white-space:normal;
-}
+.about-credits .credits-type{white-space:normal}
 @media (max-width:720px){
   .about-credits{
     grid-template-columns:1fr;
-    align-items:stretch;
     gap:var(--gap);
-    width:100%;
   }
 }
-.credits-note em{
-  font-weight:700;
-  font-style:italic;
-}
-.credits-plus{
-  font-weight:700;
-  white-space:pre;
-}
+.credits-note em{font-weight:700;font-style:italic}
+.credits-plus{font-weight:700;white-space:pre}
 .credits-link{
   color:inherit;
   font-weight:700;
@@ -653,13 +722,14 @@ input[type=range].ios::-moz-range-thumb{
   margin-inline-end:calc(var(--gap) / 4);
 }
 html.about-open,
-body.about-open{
-  overflow:hidden;
-}
+body.about-open{overflow:hidden}
 
 @media (prefers-reduced-motion:reduce){
   .about-sheet,
-  .about-panel{transition:none !important;transform:none !important}
+  .about-panel,
+  .about-pictures,
+  .about-pic,
+  .about-pictures-scrim{transition:none !important;transform:none !important}
 }
 
 /* —— Mobile ——
