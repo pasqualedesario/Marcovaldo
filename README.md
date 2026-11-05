@@ -51,10 +51,6 @@ UI chrome is FOSS Modern; specimen face switches Sans / Serif. Typefaces: [FOSS 
 
 Vanilla TypeScript + Vite. No framework. Morphology core under `src/core/`; browser UI under `src/app/`; font writers under `src/export/`.
 
-## Photo credits
-
-Leaf macros: [Unsplash](https://unsplash.com/it/s/foto/leaf-macro?license=free). Photos by: Alan Emery, Andrew Lvov, Brunxs, David Clode, E.F. Taylor, Emanuel Haas, Frames For Your Heart, Greg Rosenke, Hasan Almasi, Jonathan Borba, Kiaan, Omid Armin, Oscar McGlone, Sebastian Schuster, Soubhagya Satpathy, Valentin Salja.
-
 ## License
 
-[MIT](./LICENSE). Calvino excerpts, FOSS typefaces, and Unsplash photographs retain their respective rights.
+[MIT](./LICENSE). Calvino excerpts and FOSS typefaces retain their respective rights.
