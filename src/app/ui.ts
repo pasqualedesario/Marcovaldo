@@ -41,6 +41,7 @@ import { mountDownloadPin, mountLangPin } from './stickyPins';
 import { applyStaticI18n } from './i18nDom';
 import { wireExports } from './exportsUi';
 import { mountMotion } from './motion';
+import { SVG_NS } from '../preview/selection';
 
 type MorphUi = {
   rebuildChips: () => void;
@@ -106,11 +107,11 @@ function wireMorphUi(opts: {
     b: HTMLButtonElement,
     icon: { viewBox: string; paths: readonly string[] }
   ) => {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('viewBox', icon.viewBox);
     svg.setAttribute('aria-hidden', 'true');
     for (const d of icon.paths) {
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('d', d);
       svg.append(path);
     }
@@ -465,10 +466,18 @@ export function mountApp(state: AppState): void {
     }
     morphUi.refresh();
   });
-  $('lang').addEventListener('click', () => {
-    toggleLang();
+  const applyLangChoice = (next?: 'it' | 'en') => {
+    if (next) setLang(next);
+    else toggleLang();
     applyLang();
-  });
+  };
+  $('lang').addEventListener('click', () => applyLangChoice());
+  for (const opt of document.querySelectorAll<HTMLElement>('.lang-opt')) {
+    opt.addEventListener('click', () => {
+      const next = opt.dataset.setLang;
+      if (next === 'it' || next === 'en') applyLangChoice(next);
+    });
+  }
 
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Space' && e.key !== ' ') return;
@@ -494,7 +503,7 @@ export function mountApp(state: AppState): void {
   const dockMetrics = $('dock-metrics');
   const creditsCenter = $('credits-center');
   const langLand = $('lang-land');
-  const langBtn = $('lang');
+  const langSwitch = $('lang-switch');
   const faceChipsEl = $('face-chips');
   const scaleField = $('scale-field');
   const trackingField = $('tracking-field');
@@ -520,7 +529,7 @@ export function mountApp(state: AppState): void {
       downloadCluster.insertBefore(exportsEl, downloadToggle);
     }
     if (isMobile()) {
-      topbarLeft.append(langBtn);
+      topbarLeft.append(langSwitch);
       topbarCenter.append(brandEl);
       topbarRight.append(downloadCluster);
       dockMetrics.hidden = false;
@@ -534,7 +543,7 @@ export function mountApp(state: AppState): void {
     topbarRight.append(scaleField, trackingField);
     dockMetrics.hidden = true;
     downloadAnchor.append(downloadCluster);
-    langLand.append(langBtn);
+    langLand.append(langSwitch);
     creditsCenter.append(aboutOpen);
     downloadLand.setAttribute('aria-hidden', 'true');
     unpinDownload = mountDownloadPin({
@@ -543,7 +552,7 @@ export function mountApp(state: AppState): void {
       anchor: downloadAnchor,
       land: downloadLand
     });
-    unpinLang = mountLangPin(langBtn, langLand);
+    unpinLang = mountLangPin(langSwitch, langLand);
   };
   placeChrome();
   window.matchMedia(MOBILE_MQ).addEventListener('change', placeChrome);

@@ -17,7 +17,7 @@ export function splitTextLines(text: string): string[] {
   return normalized.length ? normalized.split('\n') : [''];
 }
 
-export type SpecimenInput = {
+type SpecimenInput = {
   font: LoadedFont;
   text: string;
   params: BotanicalParams;
@@ -285,7 +285,7 @@ function lineBox(face: LoadedFont['face'], fontSize: number): { height: number; 
   return { height, baseline: (height - ascent - descent) / 2 + ascent };
 }
 
-export type OpenSpecimen = {
+type OpenSpecimen = {
   lamina: Contours;
   width: number;
   height: number;

@@ -1,4 +1,4 @@
-import type { Bounds, Contour, Contours, PathData, Pt } from '../types';
+import type { Bounds, Contour, Contours, PathData } from '../types';
 import { clamp } from '../../lib/math';
 
 const clamp01 = (t: number) => clamp(t, 0, 1);

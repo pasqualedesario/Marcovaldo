@@ -325,7 +325,6 @@ function morphAtGrowth(
     }
   }
 
-  const R = rng(seed);
   const lamina: Contours = plain.map((c) => c.slice());
 
   for (let i = 0; i < plain.length; i++) {

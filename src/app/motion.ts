@@ -4,19 +4,18 @@ import { isMobile } from '../lib/device';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export type MotionHandle = {
+type MotionHandle = {
   refreshScroll: () => void;
-  revert: () => void;
 };
 
 /** Layout/UI motion — soft settle; no dock transforms (keeps sticky Download fixed). */
 export function mountMotion(root: HTMLElement = document.querySelector('.app')!): MotionHandle {
   // Skip intro/scroll choreography on phones — saves main-thread + avoids fighting morph.
   if (isMobile()) {
-    return { refreshScroll: () => {}, revert: () => {} };
+    return { refreshScroll: () => {} };
   }
 
-  const ctx = gsap.context(() => {
+  gsap.context(() => {
     const mm = gsap.matchMedia();
 
     mm.add('(prefers-reduced-motion: reduce)', () => {
@@ -64,8 +63,7 @@ export function mountMotion(root: HTMLElement = document.querySelector('.app')!)
   }, root);
 
   return {
-    refreshScroll: () => ScrollTrigger.refresh(),
-    revert: () => ctx.revert()
+    refreshScroll: () => ScrollTrigger.refresh()
   };
 }
 

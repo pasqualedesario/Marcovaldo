@@ -44,9 +44,9 @@ function contoursToOtPath(contours: Contours, upm: number, letterCount: number):
   return path;
 }
 
-export type OtfExportProgress = { done: number; total: number; char: string };
+type OtfExportProgress = { done: number; total: number; char: string };
 
-export type BuildOtfOpts = {
+type BuildOtfOpts = {
   fontName: string;
   font: LoadedFont;
   params: BotanicalParams;

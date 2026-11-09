@@ -2,9 +2,7 @@
  * GROW axis play: sine loop 0↔100 on the current shape/margin only.
  */
 
-export type GrowthPlayHandle = {
-  playing: () => boolean;
-  start: () => void;
+type GrowthPlayHandle = {
   stop: () => void;
   toggle: () => void;
 };
@@ -72,8 +70,6 @@ export function createGrowthPlay(opts: {
   };
 
   return {
-    playing: () => playing,
-    start,
     stop,
     toggle: () => (playing ? stop() : start())
   };

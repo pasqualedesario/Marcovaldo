@@ -5,13 +5,13 @@ import {
 
 export type Lang = 'it' | 'en';
 
-export type SpecimenBlock = {
+type SpecimenBlock = {
   sizePt: number;
   /** Unique specimen text; use `\n` for soft line breaks. */
   text: string;
 };
 
-export type Dict = {
+type Dict = {
   font: string;
   faceSans: string;
   faceSerif: string;
@@ -49,7 +49,7 @@ export type Dict = {
   glyphMissing: string;
   typeHint: string;
   points: string;
-  langSwitch: string;
+  langAria: string;
   siteUrl: string;
   bootHint: string;
   bootCmd: string;
@@ -206,7 +206,7 @@ const IT: Dict = {
   glyphMissing: 'Glifo non disponibile',
   typeHint: 'Scrivi…',
   points: 'punti',
-  langSwitch: 'English',
+  langAria: 'Lingua',
   siteUrl: 'https://pasqualedesario.eu/#it',
   bootHint: 'Non aprire questo HTML come file. Avvia il server di sviluppo:',
   bootCmd: 'cd marcovaldo && npm run dev',
@@ -256,7 +256,7 @@ const EN: Dict = {
   glyphMissing: 'Glyph unavailable',
   typeHint: 'Type…',
   points: 'points',
-  langSwitch: 'Italiano',
+  langAria: 'Language',
   siteUrl: 'https://pasqualedesario.eu/?lang=en',
   bootHint: 'Do not open this HTML as a file. Start the development server:',
   bootCmd: 'cd marcovaldo && npm run dev',

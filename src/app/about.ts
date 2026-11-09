@@ -4,9 +4,7 @@ import { BRAND_TEXT, paintMorphMark } from './brand';
 import { animateAboutClose, animateAboutOpen } from './motion';
 import type { AppState } from './state';
 
-export type AboutUi = {
-  open: (origin?: HTMLElement | null) => void;
-  close: (opts?: { toGenerator?: boolean }) => void;
+type AboutUi = {
   isOpen: () => boolean;
   refreshMarks: () => void;
 };
@@ -154,8 +152,6 @@ export function mountAbout(opts: {
   });
 
   return {
-    open: () => openSheet(),
-    close: (o) => close(o),
     isOpen: () => open,
     refreshMarks
   };

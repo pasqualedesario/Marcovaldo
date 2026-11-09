@@ -1,4 +1,4 @@
-import { t } from '../i18n';
+import { getLang, t } from '../i18n';
 import { $ } from '../lib/dom';
 import { TYPEFACES_URL } from '../lib/typefaces';
 
@@ -56,7 +56,21 @@ export function applyStaticI18n(): void {
   $('download-toggle').setAttribute('aria-label', d.download);
   $('exports')?.setAttribute('aria-label', d.download);
   $('reshuffle').textContent = d.reshuffle;
-  $('lang').textContent = d.langSwitch;
+
+  const lang = getLang();
+  const langSwitch = document.getElementById('lang-switch');
+  if (langSwitch) {
+    langSwitch.dataset.lang = lang;
+    langSwitch.setAttribute('aria-label', d.langAria);
+  }
+  const langToggle = document.getElementById('lang');
+  langToggle?.setAttribute('aria-checked', lang === 'en' ? 'true' : 'false');
+  langToggle?.setAttribute('aria-label', d.langAria);
+  for (const opt of document.querySelectorAll<HTMLElement>('.lang-opt')) {
+    const on = opt.dataset.setLang === lang;
+    opt.classList.toggle('is-on', on);
+    opt.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
 
   const brand = document.getElementById('brand');
   brand?.setAttribute('aria-label', d.brandHome);

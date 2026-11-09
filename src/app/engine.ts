@@ -11,7 +11,7 @@ import { t } from '../i18n';
 import type { AppState } from './state';
 import { morphSpec, paramsSnapshot, specimenText } from './state';
 
-export type EngineDom = {
+type EngineDom = {
   stage: HTMLElement;
   preview: SVGSVGElement;
   raster: HTMLCanvasElement;
@@ -25,7 +25,7 @@ export type EngineDom = {
   isTextFocused?: () => boolean;
 };
 
-export type DrawFrame = {
+type DrawFrame = {
   width: number;
   height: number;
   lamina: Contours;

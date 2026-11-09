@@ -40,8 +40,6 @@ type BlockModel = {
   fingerprint: string;
 };
 
-const splitLines = splitTextLines;
-
 function absoluteIndex(lines: readonly string[], li: number, local: number): number {
   let cursor = 0;
   for (let i = 0; i < li; i++) cursor += (lines[i]?.length ?? 0) + 1;
@@ -196,8 +194,8 @@ function paintLineVisual(
   paintLineSelection(line, block, state.bg);
 }
 
-function rebuildBlockLines(block: BlockModel, state: AppState): void {
-  const parts = splitLines(block.text);
+function rebuildBlockLines(block: BlockModel): void {
+  const parts = splitTextLines(block.text);
   block.body.replaceChildren();
   block.lines = [];
 
@@ -238,7 +236,7 @@ function rebuildBlockLines(block: BlockModel, state: AppState): void {
 
 function indexAtBlockPointer(block: BlockModel, clientX: number, clientY: number): number {
   if (!block.lines.length) return 0;
-  const parts = splitLines(block.text);
+  const parts = splitTextLines(block.text);
   let best = block.lines[0]!;
   let bestDist = Infinity;
   for (const line of block.lines) {
@@ -307,7 +305,7 @@ export function mountSpecimens(
       input.maxLength = BLOCK_MAX;
       input.autocomplete = 'off';
       input.spellcheck = false;
-      input.rows = Math.max(1, splitLines(spec.text).length);
+      input.rows = Math.max(1, splitTextLines(spec.text).length);
       input.value = spec.text;
       input.setAttribute('aria-label', `${spec.sizePt} pt`);
       input.wrap = 'off';
@@ -324,7 +322,7 @@ export function mountSpecimens(
         fingerprint: ''
       };
 
-      rebuildBlockLines(block, state);
+      rebuildBlockLines(block);
 
       bindTextEdit(input, {
         indexAtPointer: (x, y) => {
@@ -344,12 +342,12 @@ export function mountSpecimens(
               /* ignore */
             }
           }
-          const partsBefore = splitLines(block.text);
-          const partsAfter = splitLines(next);
+          const partsBefore = splitTextLines(block.text);
+          const partsAfter = splitTextLines(next);
           block.text = next;
           if (partsBefore.length !== partsAfter.length) {
             const sel = input.selectionStart ?? 0;
-            rebuildBlockLines(block, state);
+            rebuildBlockLines(block);
             syncMobileReadonly(block);
             void paintBlock(block, state, true);
             try {

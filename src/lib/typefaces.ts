@@ -2,7 +2,7 @@ import catalog from './typefaces.json';
 
 export type FaceId = keyof typeof catalog.faces;
 
-export type FaceDef = {
+type FaceDef = {
   id: FaceId;
   label: string;
   family: string;
@@ -15,7 +15,7 @@ export const TYPEFACES_URL = catalog.url;
 export const DEFAULT_FACE = catalog.defaultFace as FaceId;
 export const FACE_IDS = Object.keys(catalog.faces) as FaceId[];
 
-export const FACES: Record<FaceId, FaceDef> = catalog.faces as Record<FaceId, FaceDef>;
+const FACES: Record<FaceId, FaceDef> = catalog.faces as Record<FaceId, FaceDef>;
 
 export function isFaceId(id: string): id is FaceId {
   return id in FACES;

@@ -1,6 +1,6 @@
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export type SelOverlayNodes = {
+type SelOverlayNodes = {
   sel: SVGRectElement;
   clipRect: SVGRectElement;
   selPath: SVGPathElement;

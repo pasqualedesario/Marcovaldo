@@ -37,7 +37,7 @@ export const LEAF_MARGINS = [
 
 export type LeafMargin = (typeof LEAF_MARGINS)[number];
 
-export type ShapeGroup =
+type ShapeGroup =
   | 'needle'
   | 'lance'
   | 'broad'

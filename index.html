@@ -134,7 +134,17 @@
 
   <footer class="site-credits">
     <span class="lang-land" id="lang-land">
-      <button class="chip lang-btn" id="lang" type="button" aria-label="Language">English</button>
+      <div class="lang-switch" id="lang-switch" data-lang="it" role="group" aria-label="Lingua">
+        <button type="button" class="lang-opt is-on" data-set-lang="it" aria-pressed="true" aria-label="Italiano">
+          <span class="lang-opt-full">Italiano</span><span class="lang-opt-short" aria-hidden="true">Ita</span>
+        </button>
+        <button type="button" class="lang-toggle" id="lang" role="switch" aria-checked="false" aria-label="Lingua">
+          <span class="lang-toggle-knob" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="lang-opt" data-set-lang="en" aria-pressed="false" aria-label="English">
+          <span class="lang-opt-full">English</span><span class="lang-opt-short" aria-hidden="true">Eng</span>
+        </button>
+      </div>
     </span>
     <span class="credits-center" id="credits-center">
       <button type="button" class="about-mark" id="about-open" aria-expanded="false" aria-controls="about-sheet">About</button>

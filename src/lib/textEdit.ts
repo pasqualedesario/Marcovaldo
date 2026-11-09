@@ -1,8 +1,8 @@
 /** Pointer + keyboard selection wiring for invisible glyph text fields. */
 
-export type TextEditTarget = HTMLInputElement | HTMLTextAreaElement;
+type TextEditTarget = HTMLInputElement | HTMLTextAreaElement;
 
-export type TextEditHooks = {
+type TextEditHooks = {
   /** Map pointer → caret index (may use X and/or Y for multi-line). */
   indexAtPointer: (clientX: number, clientY: number) => number;
   onSelection: () => void;

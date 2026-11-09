@@ -12,7 +12,7 @@ import { buildGrowVariableTtf, type VfGlyph } from './ttfVf';
 
 const EXPORT_POLISH = { chaikinPasses: 1 } as const;
 
-export type VfExportProgress = { done: number; total: number; char: string };
+type VfExportProgress = { done: number; total: number; char: string };
 
 function charsetList(font: LoadedFont, source: string): string[] {
   const out: string[] = [];
@@ -107,7 +107,7 @@ function morphPair(
   };
 }
 
-export type GrowthVfBuildOpts = {
+type GrowthVfBuildOpts = {
   basename: string;
   fontName: string;
   font: LoadedFont;

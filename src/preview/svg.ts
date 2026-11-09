@@ -54,9 +54,6 @@ function ensureStage(svg: SVGSVGElement): StageNodes {
     clip.appendChild(clipRect);
   }
 
-  // Drop multi-path flora group from earlier preview path.
-  svg.querySelector(':scope > .stage-flora')?.remove();
-
   const nodes: StageNodes = {
     bg: ensureEl(svg, 'rect', 'stage-bg', (r) => {
       r.setAttribute('width', '100%');

@@ -17,7 +17,7 @@ export type VfGlyph = {
   max: Pt[][];
 };
 
-export type VfFontInput = {
+type VfFontInput = {
   familyName: string;
   styleName: string;
   postScriptName: string;
